@@ -1,0 +1,16 @@
+[package]
+name = "focusctl"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "focusctl"
+path = "src/main.rs"
+
+[dependencies]
+focus-core = { path = "../focus-core" }
+focus-db = { path = "../focus-db" }
+clap = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }

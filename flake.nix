@@ -22,6 +22,7 @@
             rust
             pkgs.cargo-watch
             pkgs.yt-dlp
+            pkgs.sqlx-cli
           ];
 
           shellHook = ''

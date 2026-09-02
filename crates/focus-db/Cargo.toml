@@ -1,0 +1,11 @@
+[package]
+name = "focus-db"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+focus-core = { path = "../focus-core" }
+rusqlite = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+directories = { workspace = true }
