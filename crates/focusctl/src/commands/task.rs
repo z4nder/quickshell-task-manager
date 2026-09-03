@@ -42,6 +42,12 @@ pub fn done(db: &Db, id: i64) -> Result<()> {
     Ok(())
 }
 
+pub fn undone(db: &Db, id: i64) -> Result<()> {
+    db.task_undone(id)?;
+    println!("Tarefa #{id} reaberta");
+    Ok(())
+}
+
 pub fn edit(db: &Db, id: i64, patch: TaskPatch) -> Result<()> {
     db.task_edit(id, patch)?;
     println!("Tarefa #{id} atualizada");

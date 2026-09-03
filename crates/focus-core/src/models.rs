@@ -16,6 +16,8 @@ pub struct Task {
     pub latest_focus_at: Option<DateTime<Utc>>,
     /// Last time a focus session was paused on this task
     pub latest_pause_at: Option<DateTime<Utc>>,
+    /// Total focused seconds accumulated across all completed sessions
+    pub elapsed_secs: u64,
 }
 
 impl fmt::Display for Task {

@@ -71,6 +71,8 @@ enum TaskCmd {
     },
     /// Mark task as done
     Done { id: i64 },
+    /// Reopen a completed task
+    Undone { id: i64 },
     /// Edit a task's fields (only provided flags are updated)
     Edit {
         id: i64,
@@ -88,9 +90,14 @@ enum TaskCmd {
         /// Notes (empty string = clear)
         #[arg(long)]
         notes: Option<String>,
+        /// Reset elapsed focus time to zero
+        #[arg(long)]
+        reset_time: bool,
     },
     /// Delete a task
     Delete { id: i64 },
+    /// Set the display order of tasks (pass all IDs in desired order)
+    Reorder { ids: Vec<i64> },
 }
 
 fn parse_date(s: &str) -> Result<NaiveDate> {
@@ -122,9 +129,13 @@ fn main() -> Result<()> {
             }
             TaskCmd::List { json } => commands::task::list(&db, json),
             TaskCmd::Done { id } => commands::task::done(&db, id),
-            TaskCmd::Edit { id, title, date, unschedule, estimated_mins, notes } => {
+            TaskCmd::Undone { id } => commands::task::undone(&db, id),
+            TaskCmd::Edit { id, title, date, unschedule, estimated_mins, notes, reset_time } => {
                 if date.is_some() && unschedule {
                     bail!("--date e --unschedule são mutuamente exclusivos");
+                }
+                if reset_time {
+                    db.task_reset_time(id)?;
                 }
                 let scheduled_date = if unschedule {
                     Some(None)
@@ -141,6 +152,10 @@ fn main() -> Result<()> {
                 })
             }
             TaskCmd::Delete { id } => commands::task::delete(&db, id),
+            TaskCmd::Reorder { ids } => {
+                db.task_reorder(&ids)?;
+                Ok(())
+            }
         },
     }
 }

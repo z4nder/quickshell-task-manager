@@ -77,7 +77,9 @@ impl Db {
                 estimated_mins   INTEGER,
                 notes            TEXT,
                 latest_focus_at  TEXT,
-                latest_pause_at  TEXT
+                latest_pause_at  TEXT,
+                elapsed_secs     INTEGER NOT NULL DEFAULT 0,
+                sort_order       INTEGER NOT NULL DEFAULT 0
             );
             CREATE TABLE IF NOT EXISTS focus_sessions (
                 id          INTEGER PRIMARY KEY,
@@ -88,7 +90,17 @@ impl Db {
                 FOREIGN KEY(task_id) REFERENCES tasks(id)
             );
             ",
-        )
+        )?;
+        // Add columns to existing DBs (silently ignored if already present)
+        let _ = self.conn.execute(
+            "ALTER TABLE tasks ADD COLUMN elapsed_secs INTEGER NOT NULL DEFAULT 0",
+            [],
+        );
+        let _ = self.conn.execute(
+            "ALTER TABLE tasks ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
+            [],
+        );
+        Ok(())
     }
 
     // ── Tasks ─────────────────────────────────────────────────────────────
@@ -102,10 +114,15 @@ impl Db {
     ) -> Result<Task, DbError> {
         let now = Utc::now();
         let date_s = scheduled_date.map(|d| d.to_string());
+        let next_order: i64 = self.conn.query_row(
+            "SELECT COALESCE(MIN(sort_order), 1) - 1 FROM tasks",
+            [],
+            |row| row.get(0),
+        ).unwrap_or(0);
         self.conn.execute(
-            "INSERT INTO tasks (title, completed, created_at, scheduled_date, estimated_mins, notes)
-             VALUES (?1, 0, ?2, ?3, ?4, ?5)",
-            params![title, now.to_rfc3339(), date_s, estimated_mins, notes],
+            "INSERT INTO tasks (title, completed, created_at, scheduled_date, estimated_mins, notes, sort_order)
+             VALUES (?1, 0, ?2, ?3, ?4, ?5, ?6)",
+            params![title, now.to_rfc3339(), date_s, estimated_mins, notes, next_order],
         )?;
         let id = self.conn.last_insert_rowid();
         Ok(Task {
@@ -119,14 +136,16 @@ impl Db {
             notes: notes.map(str::to_string),
             latest_focus_at: None,
             latest_pause_at: None,
+            elapsed_secs: 0,
         })
     }
 
     pub fn task_list(&self) -> Result<Vec<Task>, DbError> {
         let mut stmt = self.conn.prepare(
             "SELECT id, title, completed, created_at, completed_at,
-                    scheduled_date, estimated_mins, notes, latest_focus_at, latest_pause_at
-             FROM tasks ORDER BY id",
+                    scheduled_date, estimated_mins, notes, latest_focus_at, latest_pause_at,
+                    elapsed_secs
+             FROM tasks ORDER BY sort_order, id",
         )?;
         let tasks = stmt
             .query_map([], |row| task_from_row(row))?
@@ -136,9 +155,26 @@ impl Db {
 
     pub fn task_done(&self, id: i64) -> Result<(), DbError> {
         let now = Utc::now();
+        // Push to bottom of sort order when completing
+        let bottom_order: i64 = self.conn.query_row(
+            "SELECT COALESCE(MAX(sort_order), 0) + 1 FROM tasks WHERE id != ?1",
+            params![id],
+            |row| row.get(0),
+        ).unwrap_or(0);
         let rows = self.conn.execute(
-            "UPDATE tasks SET completed = 1, completed_at = ?1 WHERE id = ?2 AND completed = 0",
-            params![now.to_rfc3339(), id],
+            "UPDATE tasks SET completed = 1, completed_at = ?1, sort_order = ?2 WHERE id = ?3 AND completed = 0",
+            params![now.to_rfc3339(), bottom_order, id],
+        )?;
+        if rows == 0 {
+            return Err(DbError::TaskNotFound(id));
+        }
+        Ok(())
+    }
+
+    pub fn task_undone(&self, id: i64) -> Result<(), DbError> {
+        let rows = self.conn.execute(
+            "UPDATE tasks SET completed = 0, completed_at = NULL WHERE id = ?1",
+            params![id],
         )?;
         if rows == 0 {
             return Err(DbError::TaskNotFound(id));
@@ -184,7 +220,38 @@ impl Db {
         Ok(())
     }
 
+    pub fn task_reorder(&self, ids: &[i64]) -> Result<(), DbError> {
+        for (i, &id) in ids.iter().enumerate() {
+            self.conn.execute(
+                "UPDATE tasks SET sort_order = ?1 WHERE id = ?2",
+                params![(i + 1) as i64, id],
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn task_reset_time(&self, id: i64) -> Result<(), DbError> {
+        let rows = self.conn.execute(
+            "UPDATE tasks SET elapsed_secs = 0 WHERE id = ?1",
+            params![id],
+        )?;
+        if rows == 0 {
+            return Err(DbError::TaskNotFound(id));
+        }
+        // Also delete all completed sessions for this task
+        self.conn.execute(
+            "DELETE FROM focus_sessions WHERE task_id = ?1 AND ended_at IS NOT NULL",
+            params![id],
+        )?;
+        Ok(())
+    }
+
     pub fn task_delete(&self, id: i64) -> Result<(), DbError> {
+        // Remove sessions referencing this task before deleting it
+        self.conn.execute(
+            "DELETE FROM focus_sessions WHERE task_id = ?1",
+            params![id],
+        )?;
         let rows = self
             .conn
             .execute("DELETE FROM tasks WHERE id = ?1", params![id])?;
@@ -278,11 +345,24 @@ impl Db {
     }
 
     fn session_end_by_id(&self, id: i64) -> SqlResult<()> {
+        let (task_id, started_at_s): (Option<i64>, String) = self.conn.query_row(
+            "SELECT task_id, started_at FROM focus_sessions WHERE id = ?1",
+            params![id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
         let now = Utc::now();
+        let started_at = parse_dt(started_at_s);
+        let duration_secs = now.signed_duration_since(started_at).num_seconds().max(0);
         self.conn.execute(
             "UPDATE focus_sessions SET ended_at = ?1, paused_at = NULL WHERE id = ?2",
             params![now.to_rfc3339(), id],
         )?;
+        if let Some(tid) = task_id {
+            self.conn.execute(
+                "UPDATE tasks SET elapsed_secs = elapsed_secs + ?1 WHERE id = ?2",
+                params![duration_secs, tid],
+            )?;
+        }
         Ok(())
     }
 
@@ -302,12 +382,13 @@ impl Db {
                     .map(|tid| self.task_by_id(tid))
                     .transpose()?
                     .flatten();
-                let elapsed = session::elapsed_secs(&s);
+                let current_elapsed = session::elapsed_secs(&s);
+                let task_elapsed = task.as_ref().map(|t| t.elapsed_secs).unwrap_or(0);
                 let paused = session::is_paused(&s);
                 Ok(StatusOutput {
                     active: true,
                     paused,
-                    elapsed_secs: elapsed,
+                    elapsed_secs: task_elapsed + current_elapsed,
                     task,
                     session: Some(s),
                 })
@@ -318,7 +399,8 @@ impl Db {
     fn task_by_id(&self, id: i64) -> Result<Option<Task>, DbError> {
         let mut stmt = self.conn.prepare(
             "SELECT id, title, completed, created_at, completed_at,
-                    scheduled_date, estimated_mins, notes, latest_focus_at, latest_pause_at
+                    scheduled_date, estimated_mins, notes, latest_focus_at, latest_pause_at,
+                    elapsed_secs
              FROM tasks WHERE id = ?1",
         )?;
         let mut rows = stmt.query_map(params![id], |row| task_from_row(row))?;
@@ -338,6 +420,7 @@ fn task_from_row(row: &rusqlite::Row<'_>) -> SqlResult<Task> {
         notes: row.get(7)?,
         latest_focus_at: row.get::<_, Option<String>>(8)?.map(parse_dt),
         latest_pause_at: row.get::<_, Option<String>>(9)?.map(parse_dt),
+        elapsed_secs: row.get::<_, i64>(10).unwrap_or(0).max(0) as u64,
     })
 }
 
