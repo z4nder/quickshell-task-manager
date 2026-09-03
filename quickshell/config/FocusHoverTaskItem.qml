@@ -11,12 +11,35 @@ Rectangle {
     property bool   isActive: service && service.currentTask
                               && service.currentTask.id === task.id
 
+    // Optimistic done state: show check immediately, send command after delay
+    property bool _pendingDone: false
+
     signal playClicked()
     signal doneClicked()
 
+    // Fires the actual backend command after 1s
+    Timer {
+        id: doneTimer
+        interval: 1000
+        repeat: false
+        onTriggered: {
+            root._pendingDone = false
+            root.doneClicked()
+        }
+    }
+
     implicitHeight: 36
-    color: hoverArea.containsMouse ? Theme.bgHover : "transparent"
+    color: (isActive || hoverArea.containsMouse) ? Theme.bgHover : "transparent"
     radius: Theme.radiusSm
+
+    // Active left-edge accent bar
+    Rectangle {
+        width: 3
+        anchors { left: parent.left; top: parent.top; bottom: parent.bottom; topMargin: 5; bottomMargin: 5 }
+        radius: 2
+        color: Theme.accent
+        visible: isActive
+    }
 
     RowLayout {
         anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
@@ -24,33 +47,54 @@ Rectangle {
 
         // Check toggle — empty circle when pending, filled accent + checkmark when done
         Rectangle {
-            width: 16; height: 16; radius: 8
-            color: task && task.completed ? Theme.accent : "transparent"
+            width: 20; height: 20; radius: 10
+            color: (task && task.completed) || root._pendingDone ? Theme.accent : "transparent"
             border.color: Theme.textSecondary
             border.width: 1.5
 
             Image {
                 anchors.centerIn: parent
                 source: Theme.iconsPath + "check.svg"
-                width: 9; height: 9
+                width: 11; height: 11
                 fillMode: Image.PreserveAspectFit
-                visible: task && task.completed
+                visible: (task && task.completed) || root._pendingDone
             }
 
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                onClicked: root.doneClicked()
+                onClicked: {
+                    if (task && task.completed) {
+                        // Undone: no delay, act immediately
+                        root.doneClicked()
+                    } else if (!root._pendingDone) {
+                        root._pendingDone = true
+                        doneTimer.start()
+                    } else {
+                        // Second click cancels pending done
+                        doneTimer.stop()
+                        root._pendingDone = false
+                    }
+                }
             }
         }
 
-        // Title
+        // Title — click selects/starts this task
         Text {
             text: task ? task.title : ""
             font.pixelSize: Theme.fontMd
             color: Theme.textPrimary
             elide: Text.ElideRight
             Layout.fillWidth: true
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                enabled: !(task && task.completed) && !root._pendingDone
+                onClicked: {
+                    if (service && task) service.startSession(task.id)
+                }
+            }
         }
 
         // Estimated mins badge
@@ -76,7 +120,7 @@ Rectangle {
             width: 26; height: 26
             radius: 13
             color: isActive ? Qt.rgba(0.9, 0.22, 0.21, 0.2) : Theme.accent
-            visible: !(task && task.completed)
+            visible: !(task && task.completed) && !root._pendingDone
 
             Image {
                 anchors.centerIn: parent

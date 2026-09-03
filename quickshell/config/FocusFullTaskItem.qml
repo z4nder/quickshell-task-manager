@@ -11,13 +11,27 @@ Rectangle {
     property bool isActive:  service && service.currentTask
                              && service.currentTask.id === task.id
 
+    // Optimistic done state: show check immediately, send command after delay
+    property bool _pendingDone: false
+
     signal doneClicked()
     signal deleteClicked()
     signal playClicked()
     signal editClicked()
 
+    // Fires the actual backend command after 1s
+    Timer {
+        id: doneTimer
+        interval: 1000
+        repeat: false
+        onTriggered: {
+            root._pendingDone = false
+            root.doneClicked()
+        }
+    }
+
     implicitHeight: 44
-    color: hArea.containsMouse ? Theme.bgHover : "transparent"
+    color: (isActive || hArea.containsMouse) ? Theme.bgHover : "transparent"
     radius: Theme.radiusSm
 
     RowLayout {
@@ -26,27 +40,43 @@ Rectangle {
 
         // Circle checkbox — empty circle when pending, filled accent + checkmark when done
         Rectangle {
-            width: 18; height: 18; radius: 9
-            color: task && task.completed ? Theme.accent : "transparent"
+            width: 22; height: 22; radius: 11
+            color: (task && task.completed) || root._pendingDone ? Theme.accent : "transparent"
             border.color: Theme.textSecondary
             border.width: 1.5
 
             Image {
                 anchors.centerIn: parent
                 source: Theme.iconsPath + "check.svg"
-                width: 10; height: 10
+                width: 12; height: 12
                 fillMode: Image.PreserveAspectFit
-                visible: task && task.completed
+                visible: (task && task.completed) || root._pendingDone
             }
 
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.doneClicked() }
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    if (task && task.completed) {
+                        // Undone: no delay, act immediately
+                        root.doneClicked()
+                    } else if (!root._pendingDone) {
+                        root._pendingDone = true
+                        doneTimer.start()
+                    } else {
+                        // Second click cancels pending done
+                        doneTimer.stop()
+                        root._pendingDone = false
+                    }
+                }
+            }
         }
 
         // Title
         Text {
             text: task ? task.title : ""
             font.pixelSize: Theme.fontMd
-            color: task && task.completed ? Theme.textMuted : Theme.textPrimary
+            color: (task && task.completed) || root._pendingDone ? Theme.textMuted : Theme.textPrimary
             elide: Text.ElideRight
             Layout.fillWidth: true
         }
@@ -72,7 +102,7 @@ Rectangle {
         Rectangle {
             width: 28; height: 28; radius: 14
             color: isActive ? Qt.rgba(0.9, 0.22, 0.21, 0.15) : Theme.accent
-            visible: !(task && task.completed)
+            visible: !(task && task.completed) && !root._pendingDone
 
             Image {
                 anchors.centerIn: parent
