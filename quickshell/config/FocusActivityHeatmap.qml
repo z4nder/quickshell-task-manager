@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls
 import "FocusTheme.js" as Theme
 
 // Month heatmap: one square per day, intensity = completed tasks count.
@@ -8,23 +7,38 @@ Item {
     id: root
 
     property var service: null
+    property string _hoverText: ""
 
     implicitWidth:  140
     implicitHeight: 120
 
-    // ── Header ────────────────────────────────────────────────────────────
-    Text {
-        id: header
-        text: "Activity"
-        font.pixelSize: Theme.fontMd
-        color: Theme.textPrimary
-        anchors { top: parent.top; left: parent.left }
+    // ── Header row: title + hover label ──────────────────────────────────────
+    Item {
+        id: headerRow
+        anchors { top: parent.top; left: parent.left; right: parent.right }
+        height: 16
+
+        Text {
+            text: "Activity"
+            font.pixelSize: Theme.fontMd
+            color: Theme.textPrimary
+            anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+            visible: root._hoverText === ""
+        }
+
+        Text {
+            text: root._hoverText
+            font.pixelSize: Theme.fontSm
+            color: Theme.textSecondary
+            anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+            visible: root._hoverText !== ""
+        }
     }
 
     // ── Grid ──────────────────────────────────────────────────────────────
     Grid {
         id: grid
-        anchors { top: header.bottom; topMargin: 8; left: parent.left }
+        anchors { top: headerRow.bottom; topMargin: 8; left: parent.left }
         columns: 7
         spacing: 4
 
@@ -33,7 +47,11 @@ Item {
 
             Rectangle {
                 property int  dayNum:  modelData
-                property int  count:   service ? service.completedCountForDate(dayDate(dayNum)) : 0
+                property int  count: {
+                    if (!service) return 0
+                    void service.tasks  // explicit dep so binding re-evaluates on task changes
+                    return service.completedCountForDate(dayDate(dayNum))
+                }
                 property bool isToday: {
                     var d = dayDate(dayNum)
                     var t = new Date()
@@ -45,23 +63,26 @@ Item {
                 width: 14; height: 14
                 radius: 3
                 color: {
-                    if (isToday && count === 0) return Qt.rgba(0.9, 0.22, 0.21, 0.5)
                     if (count === 0) return Theme.bgItem
-                    // intensity: 1 task → dim red, 4+ → full red
                     var alpha = Math.min(1.0, 0.3 + count * 0.2)
                     return Qt.rgba(0.9, 0.22, 0.21, alpha)
                 }
+                border.color: isToday ? Qt.rgba(0.9, 0.22, 0.21, 0.8) : "transparent"
+                border.width: 1
 
-                // Tooltip on hover
                 MouseArea {
                     anchors.fill: parent
                     hoverEnabled: true
-                    ToolTip.visible: containsMouse
-                    ToolTip.text: {
+                    onEntered: {
                         var d = dayDate(parent.dayNum)
-                        return Qt.formatDate(d, "dd/MM") + ": " + parent.count + " concluída(s)"
+                        var monthNames = ["Jan","Fev","Mar","Abr","Mai","Jun",
+                                          "Jul","Ago","Set","Out","Nov","Dez"]
+                        var label = monthNames[d.getMonth()] + "-"
+                            + String(d.getDate()).padStart(2, "0")
+                            + "  " + parent.count + " concluída(s)"
+                        root._hoverText = label
                     }
-                    ToolTip.delay: 300
+                    onExited: root._hoverText = ""
                 }
             }
         }

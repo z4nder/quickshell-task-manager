@@ -274,12 +274,8 @@ Rectangle {
         }
     }
 
-    // Hover tracking
-    MouseArea {
-        anchors.fill: parent
-        hoverEnabled: true
-        acceptedButtons: Qt.NoButton
-        onEntered: root.panelHoveredChanged(true)
-        onExited:  root.panelHoveredChanged(false)
+    // Hover tracking — HoverHandler doesn't steal events from child MouseAreas
+    HoverHandler {
+        onHoveredChanged: root.panelHoveredChanged(hovered)
     }
 }

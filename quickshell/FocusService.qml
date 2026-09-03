@@ -167,12 +167,11 @@ Item {
         return tasks.filter(function(t) { return t.scheduled_date === iso })
     }
 
-    // Return tasks completed on a given date (for heatmap)
+    // Count completed tasks scheduled for a given date.
     function completedCountForDate(date) {
         var iso = Qt.formatDate(date, "yyyy-MM-dd")
         return tasks.filter(function(t) {
-            if (!t.completed || !t.completed_at) return false
-            return t.completed_at.substring(0, 10) === iso
+            return t.completed && t.scheduled_date === iso
         }).length
     }
 

@@ -2,3 +2,4 @@
 - [ ] Crud de projetos e incluir/segregar tasks pro projeto
 - [ ] Tela com bons gráficos de performance/uso
 - [ ] Custom de color, BG, Text e Primary com preview de exemplo. Temas sugeridos como evangelion em roxo com texto verde e primary laranja algo assim
+- [ ] Performance, segregar sort e refresh pela data SEMPRE para não atualizar todo histórico, fazer update direto no conteudo a partir do bacno e não o contrario
