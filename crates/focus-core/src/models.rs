@@ -60,6 +60,7 @@ pub struct Task {
     #[serde(with = "dt_ms_opt")]
     pub latest_pause_at: Option<DateTime<Utc>>,
     pub elapsed_secs: u64,
+    pub project_id: Option<i64>,
 }
 
 impl fmt::Display for Task {
@@ -73,6 +74,25 @@ impl fmt::Display for Task {
             write!(f, "  ⏱ {m}min")?;
         }
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Project {
+    pub id: i64,
+    pub name: String,
+    pub color: String,
+    pub status: String,
+    pub start_date: Option<NaiveDate>,
+    pub end_date: Option<NaiveDate>,
+    pub estimated_mins: Option<i64>,
+    #[serde(with = "dt_ms")]
+    pub created_at: DateTime<Utc>,
+}
+
+impl fmt::Display for Project {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{}] #{} {} ({})", self.color, self.id, self.name, self.status)
     }
 }
 

@@ -8,6 +8,11 @@ Item {
     id: root
 
     property var service: null
+    readonly property var _theme: (service && service.themeData) ? service.themeData : {
+        bg: Theme.bg, bgPanel: Theme.bgPanel, bgItem: Theme.bgItem, bgHover: Theme.bgHover,
+        textPrimary: Theme.textPrimary, textSecondary: Theme.textSecondary, textMuted: Theme.textMuted,
+        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border
+    }
     signal hovered(bool isHovered)
     signal expandClicked()
 
@@ -24,7 +29,7 @@ Item {
 
         function trailColor() {
             var p = progress
-            if (p >= 1.0) return Theme.accent
+            if (p >= 1.0) return _theme.accent
             if (p > 0.75) {
                 // interpolate orange → red
                 return Qt.rgba(0.9, 0.3 - 0.1 * ((p - 0.75) * 4), 0.0, 1)
@@ -108,7 +113,7 @@ Item {
     // ── Background ────────────────────────────────────────────────────────
     Rectangle {
         anchors { fill: parent; margins: 2 }
-        color: Theme.bg
+        color: _theme.bg
         radius: height / 2
     }
 
@@ -121,8 +126,8 @@ Item {
         Rectangle {
             width: 7; height: 7; radius: 4
             color: {
-                if (!service || !service.sessionActive) return Theme.textMuted
-                return service.sessionPaused ? Qt.rgba(0.9, 0.6, 0, 1) : Theme.accent
+                if (!service || !service.sessionActive) return _theme.textMuted
+                return service.sessionPaused ? Qt.rgba(0.9, 0.6, 0, 1) : _theme.accent
             }
         }
 
@@ -131,14 +136,14 @@ Item {
             text: service ? service.formatTime(service.elapsedSecs) : "00:00"
             font.pixelSize: Theme.fontMd
             font.family:    "monospace"
-            color: Theme.textPrimary
+            color: _theme.textPrimary
             Layout.minimumWidth: 42
         }
 
         // Separator
         Rectangle {
             width: 1; height: 14
-            color: Theme.border
+            color: _theme.border
         }
 
         // Task name — scrolling marquee when long
@@ -155,7 +160,7 @@ Item {
                     return service.currentTask.title
                 }
                 font.pixelSize: Theme.fontSm
-                color: Theme.textSecondary
+                color: _theme.textSecondary
                 elide: Text.ElideRight
                 width: parent.width
                 anchors.verticalCenter: parent.verticalCenter

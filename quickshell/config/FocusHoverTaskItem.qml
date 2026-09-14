@@ -8,6 +8,11 @@ Rectangle {
 
     property var    task:    null
     property var    service: null
+    readonly property var _theme: (service && service.themeData) ? service.themeData : {
+        bg: Theme.bg, bgPanel: Theme.bgPanel, bgItem: Theme.bgItem, bgHover: Theme.bgHover,
+        textPrimary: Theme.textPrimary, textSecondary: Theme.textSecondary, textMuted: Theme.textMuted,
+        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border
+    }
     property bool   isActive: service && service.currentTask
                               && service.currentTask.id === task.id
 
@@ -29,7 +34,7 @@ Rectangle {
     }
 
     implicitHeight: 36
-    color: (isActive || hoverArea.containsMouse) ? Theme.bgHover : "transparent"
+    color: (isActive || hoverArea.containsMouse) ? _theme.bgHover : "transparent"
     radius: Theme.radiusSm
 
     // Active left-edge accent bar
@@ -37,7 +42,7 @@ Rectangle {
         width: 3
         anchors { left: parent.left; top: parent.top; bottom: parent.bottom; topMargin: 5; bottomMargin: 5 }
         radius: 2
-        color: Theme.accent
+        color: _theme.accent
         visible: isActive
     }
 
@@ -45,11 +50,19 @@ Rectangle {
         anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
         spacing: 8
 
+        // Project color dot
+        Rectangle {
+            visible: task && task.project_id && service
+            width: 6; height: 6; radius: 3
+            anchors.verticalCenter: parent.verticalCenter
+            color: (task && service) ? service.projectColor(task.project_id) : "transparent"
+        }
+
         // Check toggle — empty circle when pending, filled accent + checkmark when done
         Rectangle {
             width: 20; height: 20; radius: 10
-            color: (task && task.completed) || root._pendingDone ? Theme.accent : "transparent"
-            border.color: Theme.textSecondary
+            color: (task && task.completed) || root._pendingDone ? _theme.accent : "transparent"
+            border.color: _theme.textSecondary
             border.width: 1.5
 
             Image {
@@ -83,7 +96,7 @@ Rectangle {
         Text {
             text: task ? task.title : ""
             font.pixelSize: Theme.fontMd
-            color: Theme.textPrimary
+            color: _theme.textPrimary
             elide: Text.ElideRight
             Layout.fillWidth: true
 
@@ -104,13 +117,13 @@ Rectangle {
             Text {
                 text: task ? String(task.estimated_mins) : ""
                 font.pixelSize: Theme.fontSm
-                color: Theme.textSecondary
+                color: _theme.textSecondary
                 anchors.verticalCenter: parent.verticalCenter
             }
             Text {
                 text: "min"
                 font.pixelSize: Theme.fontSm - 1
-                color: Theme.textMuted
+                color: _theme.textMuted
                 anchors.verticalCenter: parent.verticalCenter
             }
         }
@@ -119,7 +132,7 @@ Rectangle {
         Rectangle {
             width: 26; height: 26
             radius: 13
-            color: isActive ? Qt.rgba(0.9, 0.22, 0.21, 0.2) : Theme.accent
+            color: isActive ? Qt.rgba(0.9, 0.22, 0.21, 0.2) : _theme.accent
             visible: !(task && task.completed) && !root._pendingDone
 
             Image {

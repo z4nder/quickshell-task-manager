@@ -8,9 +8,16 @@ pub fn add(
     date: Option<NaiveDate>,
     estimated_mins: Option<i64>,
     notes: Option<&str>,
+    project_id: Option<i64>,
     json: bool,
 ) -> Result<()> {
     let t = db.task_add(title, date, estimated_mins, notes)?;
+    if let Some(pid) = project_id {
+        db.task_edit(t.id, TaskPatch {
+            title: None, scheduled_date: None, estimated_mins: None,
+            notes: None, project_id: Some(Some(pid)),
+        })?;
+    }
     if json {
         println!("{}", serde_json::to_string_pretty(&t)?);
     } else {

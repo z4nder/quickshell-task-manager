@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use directories::ProjectDirs;
 use focus_core::{
-    models::{FocusSession, StatusOutput, Task},
+    models::{FocusSession, Project, StatusOutput, Task},
     session,
 };
 use rusqlite::{Connection, Result as SqlResult, params};
@@ -33,6 +33,16 @@ pub struct TaskPatch {
     pub scheduled_date: Option<Option<NaiveDate>>,
     pub estimated_mins: Option<Option<i64>>,
     pub notes: Option<Option<String>>,
+    pub project_id: Option<Option<i64>>,
+}
+
+pub struct ProjectPatch {
+    pub name: Option<String>,
+    pub color: Option<String>,
+    pub status: Option<String>,
+    pub start_date: Option<Option<NaiveDate>>,
+    pub end_date: Option<Option<NaiveDate>>,
+    pub estimated_mins: Option<Option<i64>>,
 }
 
 pub struct Db {
@@ -106,6 +116,22 @@ impl Db {
                 key   TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );",
+        );
+        let _ = self.conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS projects (
+                id             INTEGER PRIMARY KEY,
+                name           TEXT NOT NULL,
+                color          TEXT NOT NULL DEFAULT '#e53935',
+                status         TEXT NOT NULL DEFAULT 'Created',
+                start_date     TEXT,
+                end_date       TEXT,
+                estimated_mins INTEGER,
+                created_at     TEXT NOT NULL
+            );",
+        );
+        let _ = self.conn.execute(
+            "ALTER TABLE tasks ADD COLUMN project_id INTEGER REFERENCES projects(id)",
+            [],
         );
         Ok(())
     }
@@ -182,6 +208,7 @@ impl Db {
             latest_focus_at: None,
             latest_pause_at: None,
             elapsed_secs: 0,
+            project_id: None,
         })
     }
 
@@ -189,7 +216,7 @@ impl Db {
         let mut stmt = self.conn.prepare(
             "SELECT id, title, completed, created_at, completed_at,
                     scheduled_date, estimated_mins, notes, latest_focus_at, latest_pause_at,
-                    elapsed_secs
+                    elapsed_secs, project_id
              FROM tasks ORDER BY sort_order, id",
         )?;
         let tasks = stmt
@@ -266,6 +293,12 @@ impl Db {
             self.conn.execute(
                 "UPDATE tasks SET notes = ?1 WHERE id = ?2",
                 params![notes, id],
+            )?;
+        }
+        if let Some(project_id) = patch.project_id {
+            self.conn.execute(
+                "UPDATE tasks SET project_id = ?1 WHERE id = ?2",
+                params![project_id, id],
             )?;
         }
         Ok(())
@@ -451,11 +484,88 @@ impl Db {
         let mut stmt = self.conn.prepare(
             "SELECT id, title, completed, created_at, completed_at,
                     scheduled_date, estimated_mins, notes, latest_focus_at, latest_pause_at,
-                    elapsed_secs
+                    elapsed_secs, project_id
              FROM tasks WHERE id = ?1",
         )?;
         let mut rows = stmt.query_map(params![id], |row| task_from_row(row))?;
         Ok(rows.next().transpose()?)
+    }
+
+    // ── Projects ───────────────────────────────────────────────────────────
+
+    pub fn project_add(
+        &self,
+        name: &str,
+        color: &str,
+        status: &str,
+        start_date: Option<NaiveDate>,
+        end_date: Option<NaiveDate>,
+        estimated_mins: Option<i64>,
+    ) -> Result<Project, DbError> {
+        let now = Utc::now();
+        self.conn.execute(
+            "INSERT INTO projects (name, color, status, start_date, end_date, estimated_mins, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                name, color, status,
+                start_date.map(|d| d.to_string()),
+                end_date.map(|d| d.to_string()),
+                estimated_mins,
+                now.to_rfc3339()
+            ],
+        )?;
+        let id = self.conn.last_insert_rowid();
+        Ok(Project {
+            id, name: name.to_string(), color: color.to_string(),
+            status: status.to_string(), start_date, end_date,
+            estimated_mins, created_at: now,
+        })
+    }
+
+    pub fn project_list(&self) -> Result<Vec<Project>, DbError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, color, status, start_date, end_date, estimated_mins, created_at
+             FROM projects ORDER BY id",
+        )?;
+        let projects = stmt
+            .query_map([], |row| project_from_row(row))?
+            .collect::<SqlResult<Vec<_>>>()?;
+        Ok(projects)
+    }
+
+    pub fn project_edit(&self, id: i64, patch: ProjectPatch) -> Result<(), DbError> {
+        let exists: bool = self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM projects WHERE id = ?1)",
+            params![id], |row| row.get(0),
+        )?;
+        if !exists { return Err(DbError::TaskNotFound(id)); }
+        if let Some(name) = patch.name {
+            self.conn.execute("UPDATE projects SET name = ?1 WHERE id = ?2", params![name, id])?;
+        }
+        if let Some(color) = patch.color {
+            self.conn.execute("UPDATE projects SET color = ?1 WHERE id = ?2", params![color, id])?;
+        }
+        if let Some(status) = patch.status {
+            self.conn.execute("UPDATE projects SET status = ?1 WHERE id = ?2", params![status, id])?;
+        }
+        if let Some(d) = patch.start_date {
+            self.conn.execute("UPDATE projects SET start_date = ?1 WHERE id = ?2", params![d.map(|d| d.to_string()), id])?;
+        }
+        if let Some(d) = patch.end_date {
+            self.conn.execute("UPDATE projects SET end_date = ?1 WHERE id = ?2", params![d.map(|d| d.to_string()), id])?;
+        }
+        if let Some(m) = patch.estimated_mins {
+            self.conn.execute("UPDATE projects SET estimated_mins = ?1 WHERE id = ?2", params![m, id])?;
+        }
+        Ok(())
+    }
+
+    pub fn project_delete(&self, id: i64) -> Result<(), DbError> {
+        // Clear project_id on tasks (don't delete tasks)
+        self.conn.execute("UPDATE tasks SET project_id = NULL WHERE project_id = ?1", params![id])?;
+        let rows = self.conn.execute("DELETE FROM projects WHERE id = ?1", params![id])?;
+        if rows == 0 { return Err(DbError::TaskNotFound(id)); }
+        Ok(())
     }
 }
 
@@ -472,6 +582,20 @@ fn task_from_row(row: &rusqlite::Row<'_>) -> SqlResult<Task> {
         latest_focus_at: row.get::<_, Option<String>>(8)?.map(parse_dt),
         latest_pause_at: row.get::<_, Option<String>>(9)?.map(parse_dt),
         elapsed_secs: row.get::<_, i64>(10).unwrap_or(0).max(0) as u64,
+        project_id: row.get(11).unwrap_or(None),
+    })
+}
+
+fn project_from_row(row: &rusqlite::Row<'_>) -> SqlResult<Project> {
+    Ok(Project {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        color: row.get(2)?,
+        status: row.get(3)?,
+        start_date: row.get::<_, Option<String>>(4)?.and_then(|s| s.parse().ok()),
+        end_date: row.get::<_, Option<String>>(5)?.and_then(|s| s.parse().ok()),
+        estimated_mins: row.get(6)?,
+        created_at: parse_dt(row.get::<_, String>(7)?),
     })
 }
 
@@ -521,6 +645,7 @@ mod tests {
             scheduled_date: Some(None),
             estimated_mins: None,
             notes: None,
+            project_id: None,
         }).unwrap();
 
         let list = db.task_list().unwrap();
@@ -561,6 +686,7 @@ mod tests {
             scheduled_date: None,
             estimated_mins: Some(Some(60)),
             notes: Some(Some("My note".to_string())),
+            project_id: None,
         }).unwrap();
         let list = db.task_list().unwrap();
         assert_eq!(list[0].title, "Old title"); // unchanged

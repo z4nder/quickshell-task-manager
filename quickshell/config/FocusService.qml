@@ -1,5 +1,5 @@
 import QtQuick
-import Quickshell.Io
+import Quickshell.Io as Io
 
 // Central state manager. Instantiate once in shell.qml.
 Item {
@@ -10,11 +10,35 @@ Item {
     property string focusBin: "focusctl"
 
     // ── Exposed state ─────────────────────────────────────────────────────
-    property bool   sessionActive: false
-    property bool   sessionPaused: false
-    property int    elapsedSecs:   0
-    property var    currentTask:   null   // task object or null
-    property var    tasks:         []     // all tasks array
+    property bool   sessionActive:       false
+    property bool   sessionPaused:       false
+    property int    elapsedSecs:         0
+    property var    currentTask:         null   // task object or null
+    property var    tasks:               []     // all tasks array
+    property var    projects:            []     // all projects array
+    property bool   rollIncomplete:      false  // setting: roll over incomplete tasks
+    property string currentTheme:        "dark" // active theme name
+
+    readonly property var themeData: {
+        var t = {
+            "dark":     { bg: "#111111", bgPanel: "#1c1c1e", bgItem: "#2c2c2e", bgHover: "#3a3a3c",
+                          textPrimary: "#ffffff", textSecondary: "#8e8e93", textMuted: "#48484a",
+                          accent: "#e53935", accentDim: "#7b1a1a", border: "#3a3a3c" },
+            "forest":   { bg: "#0d1f0d", bgPanel: "#152415", bgItem: "#1e331e", bgHover: "#274027",
+                          textPrimary: "#e8f5e9", textSecondary: "#81c784", textMuted: "#4a7a4a",
+                          accent: "#4caf50", accentDim: "#2e7d32", border: "#274027" },
+            "neon":     { bg: "#0a0010", bgPanel: "#130020", bgItem: "#1e0035", bgHover: "#2a0050",
+                          textPrimary: "#ffffff", textSecondary: "#ce93d8", textMuted: "#6a3080",
+                          accent: "#e040fb", accentDim: "#7b1fa2", border: "#2a0050" },
+            "light":    { bg: "#f5f5f7", bgPanel: "#ffffff", bgItem: "#e5e5ea", bgHover: "#d1d1d6",
+                          textPrimary: "#1c1c1e", textSecondary: "#636366", textMuted: "#aeaeb2",
+                          accent: "#e53935", accentDim: "#ffcdd2", border: "#d1d1d6" },
+            "midnight": { bg: "#000000", bgPanel: "#0d0d0d", bgItem: "#1a1a1a", bgHover: "#262626",
+                          textPrimary: "#ffffff", textSecondary: "#999999", textMuted: "#444444",
+                          accent: "#4488ff", accentDim: "#1a3a7a", border: "#262626" }
+        }
+        return t[currentTheme] || t["dark"]
+    }
 
     // Progress 0.0–1.0 for the border trail
     readonly property real progress: {
@@ -27,12 +51,12 @@ Item {
     // ── Status polling ────────────────────────────────────────────────────
     property string _statusBuf: ""
 
-    Process {
+    Io.Process {
         id: statusProc
         command: [root.focusBin, "status", "--json"]
         running: false
 
-        stdout: SplitParser {
+        stdout: Io.SplitParser {
             splitMarker: "\n"
             onRead: function(line) { root._statusBuf += line }
         }
@@ -61,12 +85,12 @@ Item {
     // ── Task list ─────────────────────────────────────────────────────────
     property string _tasksBuf: ""
 
-    Process {
+    Io.Process {
         id: tasksProc
         command: [root.focusBin, "task", "list", "--json"]
         running: false
 
-        stdout: SplitParser {
+        stdout: Io.SplitParser {
             splitMarker: "\n"
             onRead: function(line) { root._tasksBuf += line }
         }
@@ -93,17 +117,52 @@ Item {
         }
     }
 
+    // ── Project list ──────────────────────────────────────────────────────
+    property string _projectsBuf: ""
+
+    Io.Process {
+        id: projectsProc
+        command: [root.focusBin, "project", "list", "--json"]
+        running: false
+
+        stdout: Io.SplitParser {
+            splitMarker: "\n"
+            onRead: function(line) { root._projectsBuf += line }
+        }
+
+        onExited: function(code) {
+            if (code === 0 && root._projectsBuf !== "") {
+                try {
+                    var parsed = JSON.parse(root._projectsBuf)
+                    root.projects = parsed
+                } catch(e) { console.warn("[FocusService] projects parse error:", e) }
+            } else if (code === 0 && root._projectsBuf === "") {
+                root.projects = []
+            }
+            root._projectsBuf = ""
+        }
+    }
+
+    function refreshProjects() {
+        if (!projectsProc.running) {
+            console.log("[FocusService] refreshProjects()")
+            projectsProc.running = true
+        } else {
+            console.warn("[FocusService] refreshProjects() skipped — projectsProc already running")
+        }
+    }
+
     // ── Action process (sequential, one at a time) ────────────────────────
     property var    _actionQueue:    []
     property bool   _actionRunning:  false
 
     property string _actionStderr: ""
 
-    Process {
+    Io.Process {
         id: actionProc
         running: false
 
-        stderr: SplitParser {
+        stderr: Io.SplitParser {
             splitMarker: "\n"
             onRead: function(line) {
                 if (line !== "") root._actionStderr += line + "\n"
@@ -138,11 +197,17 @@ Item {
                 actionProc.onExited.disconnect(refresh)
             })
         }
+        if (item.refreshProj) {
+            actionProc.onExited.connect(function refreshP() {
+                root.refreshProjects()
+                actionProc.onExited.disconnect(refreshP)
+            })
+        }
     }
 
-    function _enqueue(cmd, refresh) {
+    function _enqueue(cmd, refresh, refreshProj) {
         console.log("[FocusService] enqueue:", cmd.join(" "))
-        _actionQueue.push({ cmd: cmd, refresh: refresh || false })
+        _actionQueue.push({ cmd: cmd, refresh: refresh || false, refreshProj: refreshProj || false })
         _drainQueue()
     }
 
@@ -154,11 +219,15 @@ Item {
     function resumeSession() { _enqueue([focusBin, "resume"], false) }
     function stopSession()   { _enqueue([focusBin, "stop"],   false) }
 
-    function addTask(title, scheduledDate) {
+    function addTask(title, scheduledDate, estimatedMins) {
         var cmd = [focusBin, "task", "add", title]
         if (scheduledDate && scheduledDate !== "") {
             cmd.push("--date")
             cmd.push(scheduledDate)
+        }
+        if (estimatedMins && estimatedMins > 0) {
+            cmd.push("--estimated-mins")
+            cmd.push(String(estimatedMins))
         }
         _enqueue(cmd, true)
     }
@@ -182,6 +251,89 @@ Item {
         if (estimatedMins >= 0)                   { cmd.push("--estimated-mins"); cmd.push(String(estimatedMins)) }
         if (notes        !== null && notes !== undefined) { cmd.push("--notes"); cmd.push(notes) }
         _enqueue(cmd, true)
+    }
+
+    function editTaskDate(id, date) {
+        var cmd = [focusBin, "task", "edit", String(id)]
+        if (date) { cmd.push("--date"); cmd.push(date) }
+        else { cmd.push("--unschedule") }
+        _enqueue(cmd, true)
+    }
+
+    function setRollIncomplete(enabled) {
+        root.rollIncomplete = enabled
+        _enqueue([focusBin, "settings", "set", "roll_incomplete", enabled ? "true" : "false"], false)
+    }
+
+    // ── Project action API ────────────────────────────────────────────────
+    function addProject(name, color, status, startDate, endDate, estimatedMins) {
+        var cmd = [focusBin, "project", "add", name,
+                   "--color", color, "--status", status]
+        if (startDate)    { cmd.push("--start-date"); cmd.push(startDate) }
+        if (endDate)      { cmd.push("--end-date");   cmd.push(endDate) }
+        if (estimatedMins && estimatedMins > 0) {
+            cmd.push("--estimated-mins"); cmd.push(String(estimatedMins))
+        }
+        _enqueue(cmd, false, true)
+    }
+
+    function editProject(id, name, color, status, startDate, endDate, estimatedMins) {
+        var cmd = [focusBin, "project", "edit", String(id)]
+        if (name)   { cmd.push("--name");   cmd.push(name) }
+        if (color)  { cmd.push("--color");  cmd.push(color) }
+        if (status) { cmd.push("--status"); cmd.push(status) }
+        if (startDate) { cmd.push("--start-date"); cmd.push(startDate) }
+        if (endDate)   { cmd.push("--end-date");   cmd.push(endDate) }
+        if (estimatedMins !== null && estimatedMins !== undefined) {
+            cmd.push("--estimated-mins"); cmd.push(String(estimatedMins))
+        }
+        _enqueue(cmd, false, true)
+    }
+
+    function deleteProject(id) {
+        _enqueue([focusBin, "project", "delete", String(id)], true, true)
+    }
+
+    function editTaskProject(taskId, projectId) {
+        var pid = projectId ? String(projectId) : "0"
+        _enqueue([focusBin, "task", "edit", String(taskId), "--project-id", pid], true)
+    }
+
+    function persistTheme(name) {
+        _enqueue([focusBin, "settings", "set", "theme", name], false)
+    }
+
+    // ── Load settings on startup ──────────────────────────────────────────
+    property string _settingBuf: ""
+    Io.Process {
+        id: settingProc
+        command: [root.focusBin, "settings", "get", "roll_incomplete"]
+        running: false
+        stdout: Io.SplitParser {
+            splitMarker: "\n"
+            onRead: function(line) { root._settingBuf += line }
+        }
+        onExited: function() {
+            root.rollIncomplete = root._settingBuf.trim() === "true"
+            root._settingBuf = ""
+            themeProcLoad.running = true
+        }
+    }
+
+    property string _themeBuf: ""
+    Io.Process {
+        id: themeProcLoad
+        command: [root.focusBin, "settings", "get", "theme"]
+        running: false
+        stdout: Io.SplitParser {
+            splitMarker: "\n"
+            onRead: function(line) { root._themeBuf += line }
+        }
+        onExited: function() {
+            var t = root._themeBuf.trim()
+            if (t !== "") root.currentTheme = t
+            root._themeBuf = ""
+        }
     }
 
     // ── Helpers (used by QML components) ──────────────────────────────────
@@ -219,8 +371,19 @@ Item {
         return tasks.filter(function(t) { return !t.scheduled_date })
     }
 
+    // Find project color for a given project_id
+    function projectColor(projectId) {
+        if (!projectId || !projects) return ""
+        for (var i = 0; i < projects.length; i++) {
+            if (projects[i].id === projectId) return projects[i].color
+        }
+        return ""
+    }
+
     Component.onCompleted: {
+        settingProc.running = true
         statusProc.running = true
         refreshTasks()
+        refreshProjects()
     }
 }

@@ -76,8 +76,8 @@ Item {
     FloatingWindow {
         id: appWin
         visible: false
-        width:   640
-        height:  420
+        width:   720
+        height:  480
 
         FocusAppScreen {
             id: appScreen

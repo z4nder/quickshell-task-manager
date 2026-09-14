@@ -7,6 +7,11 @@ Item {
     id: root
 
     property var service:      null
+    readonly property var _theme: (service && service.themeData) ? service.themeData : {
+        bg: Theme.bg, bgPanel: Theme.bgPanel, bgItem: Theme.bgItem, bgHover: Theme.bgHover,
+        textPrimary: Theme.textPrimary, textSecondary: Theme.textSecondary, textMuted: Theme.textMuted,
+        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border
+    }
     property date selectedDate: new Date()
 
     signal dateSelected(date d)
@@ -52,7 +57,7 @@ Item {
                 text: root.monthNames[root.viewMonth] + " " + root.viewYear
                 font.pixelSize: Theme.fontMd
                 font.weight: Font.Medium
-                color: Theme.textPrimary
+                color: _theme.textPrimary
             }
 
             Image {
@@ -80,7 +85,7 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     text: modelData
                     font.pixelSize: Theme.fontSm - 1
-                    color: Theme.textMuted
+                    color: _theme.textMuted
                 }
             }
         }
@@ -123,7 +128,7 @@ Item {
                     Rectangle {
                         anchors.centerIn: parent
                         width: 22; height: 22; radius: 11
-                        color: isToday ? Theme.accent : (isSelected ? Theme.bgHover : "transparent")
+                        color: isToday ? _theme.accent : (isSelected ? _theme.bgHover : "transparent")
                         visible: isToday || isSelected
                     }
 
@@ -131,8 +136,8 @@ Item {
                         anchors.centerIn: parent
                         text: cellDay > 0 ? String(cellDay) : ""
                         font.pixelSize: Theme.fontSm
-                        color: isToday ? Theme.textPrimary
-                             : (cellDay > 0 ? Theme.textPrimary : "transparent")
+                        color: isToday ? _theme.textPrimary
+                             : (cellDay > 0 ? _theme.textPrimary : "transparent")
                     }
 
                     // Task dot indicator
@@ -140,7 +145,7 @@ Item {
                         visible: taskCount > 0 && !isToday
                         anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter }
                         width: 4; height: 4; radius: 2
-                        color: Theme.accent
+                        color: _theme.accent
                     }
 
                     MouseArea {

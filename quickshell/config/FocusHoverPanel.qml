@@ -8,12 +8,17 @@ Rectangle {
     id: root
 
     property var service: null
+    readonly property var _theme: (service && service.themeData) ? service.themeData : {
+        bg: Theme.bg, bgPanel: Theme.bgPanel, bgItem: Theme.bgItem, bgHover: Theme.bgHover,
+        textPrimary: Theme.textPrimary, textSecondary: Theme.textSecondary, textMuted: Theme.textMuted,
+        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border
+    }
     signal expand()
     signal panelHoveredChanged(bool h)
 
     implicitWidth:  460
     implicitHeight: 220
-    color:          Theme.bgPanel
+    color:          _theme.bgPanel
     radius:         Theme.radiusLg
 
     layer.enabled: true
@@ -207,7 +212,7 @@ Rectangle {
                     text: "Tasks"
                     font.pixelSize: Theme.fontLg
                     font.weight: Font.Medium
-                    color: Theme.textPrimary
+                    color: _theme.textPrimary
                     Layout.fillWidth: true
                 }
                 Image {
@@ -265,7 +270,7 @@ Rectangle {
         Rectangle {
             width: 1
             Layout.fillHeight: true
-            color: Theme.border
+            color: _theme.border
         }
 
         FocusActivityHeatmap {

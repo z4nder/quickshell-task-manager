@@ -7,6 +7,11 @@ Item {
     id: root
 
     property var service: null
+    readonly property var _theme: (service && service.themeData) ? service.themeData : {
+        bg: Theme.bg, bgPanel: Theme.bgPanel, bgItem: Theme.bgItem, bgHover: Theme.bgHover,
+        textPrimary: Theme.textPrimary, textSecondary: Theme.textSecondary, textMuted: Theme.textMuted,
+        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border
+    }
     property string _hoverText: ""
 
     implicitWidth:  140
@@ -21,7 +26,7 @@ Item {
         Text {
             text: "Activity"
             font.pixelSize: Theme.fontMd
-            color: Theme.textPrimary
+            color: _theme.textPrimary
             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
             visible: root._hoverText === ""
         }
@@ -29,7 +34,7 @@ Item {
         Text {
             text: root._hoverText
             font.pixelSize: Theme.fontSm
-            color: Theme.textSecondary
+            color: _theme.textSecondary
             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
             visible: root._hoverText !== ""
         }
@@ -63,7 +68,7 @@ Item {
                 width: 14; height: 14
                 radius: 3
                 color: {
-                    if (count === 0) return Theme.bgItem
+                    if (count === 0) return _theme.bgItem
                     var alpha = Math.min(1.0, 0.3 + count * 0.2)
                     return Qt.rgba(0.9, 0.22, 0.21, alpha)
                 }
