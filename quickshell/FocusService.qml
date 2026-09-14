@@ -133,11 +133,15 @@ Item {
     function resumeSession() { _enqueue([focusBin, "resume"], false) }
     function stopSession()   { _enqueue([focusBin, "stop"],   false) }
 
-    function addTask(title, scheduledDate) {
+    function addTask(title, scheduledDate, estimatedMins) {
         var cmd = [focusBin, "task", "add", title]
         if (scheduledDate && scheduledDate !== "") {
             cmd.push("--date")
             cmd.push(scheduledDate)
+        }
+        if (estimatedMins && estimatedMins > 0) {
+            cmd.push("--estimated-mins")
+            cmd.push(String(estimatedMins))
         }
         _enqueue(cmd, true)
     }

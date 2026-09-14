@@ -212,33 +212,68 @@ Rectangle {
                 color: Theme.border
             }
 
-            // Add task input
-            TextField {
-                id: addTaskField
+            // Add task input row
+            RowLayout {
                 Layout.fillWidth: true
                 Layout.leftMargin: 16
                 Layout.rightMargin: 16
-                Layout.bottomMargin: 12
                 Layout.topMargin: 6
-                placeholderText: "Add a task"
-                color: Theme.textPrimary
-                placeholderTextColor: Theme.textMuted
-                font.pixelSize: Theme.fontMd
-                background: Rectangle { color: "transparent" }
+                Layout.bottomMargin: 12
+                spacing: 8
 
-                Keys.onReturnPressed: {
-                    var title = text.trim()
-                    if (title === "" || !service) return
-
-                    if (tabRow.currentTab === 0) {
-                        // Scheduled for the selected date
-                        var iso = Qt.formatDate(root.selectedDate, "yyyy-MM-dd")
-                        service.addTask(title, iso)
-                    } else {
-                        // Unscheduled
-                        service.addTask(title, null)
+                // Estimated mins — visible when either field is focused
+                TextField {
+                    id: estMinsField
+                    text: "30"
+                    visible: addTaskField.activeFocus || estMinsField.activeFocus
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    validator: IntValidator { bottom: 1; top: 999 }
+                    font.pixelSize: Theme.fontSm
+                    color: Theme.textPrimary
+                    implicitWidth: 48
+                    horizontalAlignment: Text.AlignHCenter
+                    background: Rectangle {
+                        color: Theme.bgItem
+                        radius: Theme.radiusSm
                     }
-                    text = ""
+                    Keys.onReturnPressed: addTaskField._submit()
+                    Keys.onEscapePressed: { addTaskField.text = ""; addTaskField.focus = false }
+                }
+
+                Text {
+                    text: "min"
+                    visible: addTaskField.activeFocus || estMinsField.activeFocus
+                    font.pixelSize: Theme.fontSm
+                    color: Theme.textMuted
+                }
+
+                TextField {
+                    id: addTaskField
+                    Layout.fillWidth: true
+                    placeholderText: "Add a task"
+                    color: Theme.textPrimary
+                    placeholderTextColor: Theme.textMuted
+                    font.pixelSize: Theme.fontMd
+                    background: Rectangle { color: "transparent" }
+
+                    function _submit() {
+                        var title = text.trim()
+                        if (title === "" || !service) return
+                        var mins = parseInt(estMinsField.text) || 0
+                        if (tabRow.currentTab === 0) {
+                            var iso = Qt.formatDate(root.selectedDate, "yyyy-MM-dd")
+                            service.addTask(title, iso, mins)
+                        } else {
+                            service.addTask(title, null, mins)
+                        }
+                        text = ""
+                        estMinsField.text = "30"
+                        addTaskField.focus = false
+                    }
+
+                    Keys.onReturnPressed: _submit()
+                    Keys.onTabPressed:    { estMinsField.forceActiveFocus(); event.accepted = true }
+                    Keys.onEscapePressed: { text = ""; focus = false }
                 }
             }
         }
