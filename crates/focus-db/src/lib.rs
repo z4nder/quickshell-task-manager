@@ -154,6 +154,12 @@ impl Db {
     }
 
     pub fn task_done(&self, id: i64) -> Result<(), DbError> {
+        // Stop active session for this task before completing
+        if let Ok(Some(session)) = self.session_active() {
+            if session.task_id == Some(id) {
+                let _ = self.session_end_by_id(session.id);
+            }
+        }
         let now = Utc::now();
         // Push to bottom of sort order when completing
         let bottom_order: i64 = self.conn.query_row(
