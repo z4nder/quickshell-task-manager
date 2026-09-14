@@ -48,6 +48,7 @@ impl Db {
         let conn = Connection::open(&path)?;
         let db = Db { conn };
         db.migrate()?;
+        let _ = db.apply_rollover();
         Ok(db)
     }
 
@@ -100,6 +101,50 @@ impl Db {
             "ALTER TABLE tasks ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
             [],
         );
+        let _ = self.conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );",
+        );
+        Ok(())
+    }
+
+    // ── Settings ──────────────────────────────────────────────────────────
+
+    pub fn setting_get(&self, key: &str) -> Option<String> {
+        self.conn.query_row(
+            "SELECT value FROM settings WHERE key = ?1",
+            params![key],
+            |row| row.get(0),
+        ).ok()
+    }
+
+    pub fn setting_set(&self, key: &str, value: &str) -> SqlResult<()> {
+        self.conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![key, value],
+        )?;
+        Ok(())
+    }
+
+    /// If roll_incomplete is enabled, reschedule past incomplete tasks to today.
+    pub fn apply_rollover(&self) -> SqlResult<()> {
+        let enabled = self.setting_get("roll_incomplete")
+            .map(|v| v == "true")
+            .unwrap_or(false);
+        if !enabled {
+            return Ok(());
+        }
+        let today = Utc::now().format("%Y-%m-%d").to_string();
+        self.conn.execute(
+            "UPDATE tasks SET scheduled_date = ?1
+             WHERE completed = 0
+               AND scheduled_date IS NOT NULL
+               AND scheduled_date < ?1",
+            params![today],
+        )?;
         Ok(())
     }
 

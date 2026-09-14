@@ -45,6 +45,19 @@ enum Cmd {
         #[command(subcommand)]
         action: TaskCmd,
     },
+    /// Settings management
+    Settings {
+        #[command(subcommand)]
+        action: SettingsCmd,
+    },
+}
+
+#[derive(Subcommand)]
+enum SettingsCmd {
+    /// Get a setting value
+    Get { key: String },
+    /// Set a setting value
+    Set { key: String, value: String },
 }
 
 #[derive(Subcommand)]
@@ -154,6 +167,18 @@ fn main() -> Result<()> {
             TaskCmd::Delete { id } => commands::task::delete(&db, id),
             TaskCmd::Reorder { ids } => {
                 db.task_reorder(&ids)?;
+                Ok(())
+            }
+        },
+        Cmd::Settings { action } => match action {
+            SettingsCmd::Get { key } => {
+                let v = db.setting_get(&key).unwrap_or_default();
+                println!("{v}");
+                Ok(())
+            }
+            SettingsCmd::Set { key, value } => {
+                db.setting_set(&key, &value)?;
+                println!("Setting '{key}' = '{value}'");
                 Ok(())
             }
         },

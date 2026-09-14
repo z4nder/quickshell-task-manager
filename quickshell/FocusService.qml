@@ -1,5 +1,5 @@
 import QtQuick
-import Quickshell.Io
+import Quickshell.Io as Io
 
 // Central state manager. Instantiate once in shell.qml.
 Item {
@@ -10,11 +10,12 @@ Item {
     property string focusBin: "focusctl"
 
     // ── Exposed state ─────────────────────────────────────────────────────
-    property bool   sessionActive: false
-    property bool   sessionPaused: false
-    property int    elapsedSecs:   0
-    property var    currentTask:   null   // task object or null
-    property var    tasks:         []     // all tasks array
+    property bool   sessionActive:       false
+    property bool   sessionPaused:       false
+    property int    elapsedSecs:         0
+    property var    currentTask:         null   // task object or null
+    property var    tasks:               []     // all tasks array
+    property bool   rollIncomplete:      false  // setting: roll over incomplete tasks
 
     // Progress 0.0–1.0 for the border trail
     readonly property real progress: {
@@ -32,7 +33,7 @@ Item {
         command: [root.focusBin, "status", "--json"]
         running: false
 
-        stdout: SplitParser {
+        stdout: Io.SplitParser {
             splitMarker: "\n"
             onRead: function(line) { root._statusBuf += line }
         }
@@ -66,7 +67,7 @@ Item {
         command: [root.focusBin, "task", "list", "--json"]
         running: false
 
-        stdout: SplitParser {
+        stdout: Io.SplitParser {
             splitMarker: "\n"
             onRead: function(line) { root._tasksBuf += line }
         }
@@ -149,6 +150,27 @@ Item {
     function doneTask(id)   { _enqueue([focusBin, "task", "done",   String(id)], true) }
     function deleteTask(id) { _enqueue([focusBin, "task", "delete", String(id)], true) }
 
+    function setRollIncomplete(enabled) {
+        root.rollIncomplete = enabled
+        _enqueue([focusBin, "settings", "set", "roll_incomplete", enabled ? "true" : "false"], true)
+    }
+
+    // ── Load setting on startup ───────────────────────────────────────────
+    property string _settingBuf: ""
+    Io.Process {
+        id: settingProc
+        command: [root.focusBin, "settings", "get", "roll_incomplete"]
+        running: false
+        stdout: Io.SplitParser {
+            splitMarker: "\n"
+            onRead: function(line) { root._settingBuf += line }
+        }
+        onExited: function() {
+            root.rollIncomplete = root._settingBuf.trim() === "true"
+            root._settingBuf = ""
+        }
+    }
+
     function editTaskDate(id, date) {
         var cmd = [focusBin, "task", "edit", String(id)]
         if (date) { cmd.push("--date"); cmd.push(date) }
@@ -187,6 +209,7 @@ Item {
     }
 
     Component.onCompleted: {
+        settingProc.running = true
         statusProc.running = true
         refreshTasks()
     }

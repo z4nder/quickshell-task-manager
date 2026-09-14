@@ -16,6 +16,122 @@ Rectangle {
     color:          Theme.bgPanel
     radius:         Theme.radiusLg
 
+    property bool settingRollIncomplete: service ? service.rollIncomplete : false
+
+    // ── Settings modal ────────────────────────────────────────────────────
+    Rectangle {
+        id: settingsOverlay
+        anchors.fill: parent
+        anchors.margins: 1
+        radius: Theme.radiusLg
+        color: Qt.rgba(0, 0, 0, 0.55)
+        visible: false
+        z: 10
+
+        MouseArea { anchors.fill: parent } // block clicks through
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: 340
+            height: settingsCol.implicitHeight + 40
+            color: Theme.bgPanel
+            radius: Theme.radiusMd
+            border.color: Theme.border
+            border.width: 1
+
+            ColumnLayout {
+                id: settingsCol
+                anchors { fill: parent; margins: 20 }
+                spacing: 16
+
+                // Title row
+                RowLayout {
+                    Layout.fillWidth: true
+                    Text {
+                        text: "Settings"
+                        font.pixelSize: Theme.fontLg
+                        font.weight: Font.Medium
+                        color: Theme.textPrimary
+                        Layout.fillWidth: true
+                    }
+                    Rectangle {
+                        width: 24; height: 24
+                        radius: 6
+                        color: closeSettingsArea.containsMouse ? Theme.bgHover : "transparent"
+                        Text {
+                            anchors.centerIn: parent
+                            text: "✕"
+                            font.pixelSize: Theme.fontSm
+                            color: Theme.textMuted
+                        }
+                        MouseArea {
+                            id: closeSettingsArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: settingsOverlay.visible = false
+                        }
+                    }
+                }
+
+                // Divider
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+
+                // Setting: Roll incomplete tasks
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 3
+                        Text {
+                            text: "Roll over incomplete tasks"
+                            font.pixelSize: Theme.fontMd
+                            color: Theme.textPrimary
+                        }
+                        Text {
+                            text: "Unfinished tasks from past days are\nautomatically rescheduled to today."
+                            font.pixelSize: Theme.fontSm
+                            color: Theme.textMuted
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
+
+                    // Toggle switch
+                    Rectangle {
+                        width: 40; height: 22
+                        radius: 11
+                        color: root.settingRollIncomplete ? Theme.accent : Theme.bgItem
+                        border.color: root.settingRollIncomplete ? Theme.accent : Theme.border
+                        border.width: 1
+
+                        Behavior on color { ColorAnimation { duration: 120 } }
+
+                        Rectangle {
+                            width: 16; height: 16
+                            radius: 8
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: root.settingRollIncomplete ? parent.width - width - 3 : 3
+                            color: "white"
+                            Behavior on x { NumberAnimation { duration: 120 } }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.settingRollIncomplete = !root.settingRollIncomplete
+                                if (service) service.setRollIncomplete(root.settingRollIncomplete)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     RowLayout {
         anchors.fill: parent
         spacing: 0
@@ -41,10 +157,18 @@ Rectangle {
                         color: Theme.textPrimary
                         Layout.fillWidth: true
                     }
-                    Text {
-                        text: "⚙"
-                        font.pixelSize: Theme.fontMd
-                        color: Theme.textSecondary
+                    Image {
+                        source: Theme.iconsPath + "cog-6-tooth.svg"
+                        width: 16; height: 16
+                        fillMode: Image.PreserveAspectFit
+                        opacity: gearArea.containsMouse ? 1.0 : 0.5
+                        MouseArea {
+                            id: gearArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: settingsOverlay.visible = true
+                        }
                     }
                 }
 
