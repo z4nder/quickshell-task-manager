@@ -73,14 +73,24 @@ Item {
 
         onExited: function(code) {
             if (code === 0 && root._tasksBuf !== "") {
-                try { root.tasks = JSON.parse(root._tasksBuf) } catch(e) {}
+                try {
+                    var parsed = JSON.parse(root._tasksBuf)
+                    var order = parsed.map(function(t) { return t.id + ":" + t.title }).join(", ")
+                    console.log("[FocusService] tasks loaded:", order)
+                    root.tasks = parsed
+                } catch(e) { console.warn("[FocusService] tasks parse error:", e) }
             }
             root._tasksBuf = ""
         }
     }
 
     function refreshTasks() {
-        if (!tasksProc.running) tasksProc.running = true
+        if (!tasksProc.running) {
+            console.log("[FocusService] refreshTasks()")
+            tasksProc.running = true
+        } else {
+            console.warn("[FocusService] refreshTasks() skipped — tasksProc already running")
+        }
     }
 
     // ── Action process (sequential, one at a time) ────────────────────────
@@ -190,24 +200,23 @@ Item {
         })
     }
 
-    // Return tasks scheduled for a given Date object (completed go to bottom)
+    // Return tasks scheduled for a given Date object (order from DB sort_order)
     function tasksForDate(date) {
         var iso = Qt.formatDate(date, "yyyy-MM-dd")
-        return _sortedByCompletion(tasks.filter(function(t) { return t.scheduled_date === iso }))
+        return tasks.filter(function(t) { return t.scheduled_date === iso })
     }
 
-    // Return tasks completed on a given date (for heatmap)
+    // Count completed tasks scheduled for a given date.
     function completedCountForDate(date) {
         var iso = Qt.formatDate(date, "yyyy-MM-dd")
         return tasks.filter(function(t) {
-            if (!t.completed || !t.completed_at) return false
-            return t.completed_at.substring(0, 10) === iso
+            return t.completed && t.scheduled_date === iso
         }).length
     }
 
-    // Return unscheduled tasks (completed go to bottom)
+    // Return unscheduled tasks (order from DB sort_order)
     function unscheduledTasks() {
-        return _sortedByCompletion(tasks.filter(function(t) { return !t.scheduled_date }))
+        return tasks.filter(function(t) { return !t.scheduled_date })
     }
 
     Component.onCompleted: {

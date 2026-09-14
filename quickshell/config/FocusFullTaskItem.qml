@@ -31,11 +31,20 @@ Rectangle {
     }
 
     implicitHeight: 44
-    color: (isActive || hArea.containsMouse) ? Theme.bgHover : "transparent"
     radius: Theme.radiusSm
+    color: (isActive || hArea.containsMouse) ? Theme.bgHover : "transparent"
+
+    // Active left-edge accent bar
+    Rectangle {
+        width: 3
+        anchors { left: parent.left; top: parent.top; bottom: parent.bottom; topMargin: 6; bottomMargin: 6 }
+        radius: 2
+        color: Theme.accent
+        visible: isActive
+    }
 
     RowLayout {
-        anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+        anchors { fill: parent; leftMargin: 10; rightMargin: 8 }
         spacing: 8
 
         // Circle checkbox — empty circle when pending, filled accent + checkmark when done
@@ -58,13 +67,11 @@ Rectangle {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
                     if (task && task.completed) {
-                        // Undone: no delay, act immediately
                         root.doneClicked()
                     } else if (!root._pendingDone) {
                         root._pendingDone = true
                         doneTimer.start()
                     } else {
-                        // Second click cancels pending done
                         doneTimer.stop()
                         root._pendingDone = false
                     }
@@ -72,19 +79,28 @@ Rectangle {
             }
         }
 
-        // Title
+        // Title — click selects/starts this task
         Text {
             text: task ? task.title : ""
             font.pixelSize: Theme.fontMd
             color: (task && task.completed) || root._pendingDone ? Theme.textMuted : Theme.textPrimary
             elide: Text.ElideRight
             Layout.fillWidth: true
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                enabled: !(task && task.completed) && !root._pendingDone
+                onClicked: {
+                    if (service && task) service.startSession(task.id)
+                }
+            }
         }
 
         // Estimated mins badge
         Rectangle {
             visible: task && task.estimated_mins
-            color: Theme.bgItem
+            color: isActive ? Qt.rgba(0.9, 0.22, 0.21, 0.2) : Theme.bgItem
             radius: Theme.radiusSm
             implicitWidth: minsLabel.implicitWidth + 10
             implicitHeight: 20
@@ -94,14 +110,14 @@ Rectangle {
                 anchors.centerIn: parent
                 text: task ? String(task.estimated_mins) : ""
                 font.pixelSize: Theme.fontSm
-                color: Theme.textSecondary
+                color: isActive ? Theme.textPrimary : Theme.textSecondary
             }
         }
 
         // Play / Pause button
         Rectangle {
             width: 28; height: 28; radius: 14
-            color: isActive ? Qt.rgba(0.9, 0.22, 0.21, 0.15) : Theme.accent
+            color: isActive ? Qt.rgba(0.9, 0.22, 0.21, 0.25) : Theme.accent
             visible: !(task && task.completed) && !root._pendingDone
 
             Image {
@@ -137,7 +153,6 @@ Rectangle {
             Behavior on opacity { NumberAnimation { duration: 120 } }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.deleteClicked() }
         }
-
     }
 
     MouseArea {
