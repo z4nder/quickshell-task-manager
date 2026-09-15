@@ -1,11 +1,10 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls
 import "FocusTheme.js" as Theme
 
-// Date picker: text field + calendar popup.
+// Date picker: display field + inline calendar dropdown.
 // Exposes `value` (string "YYYY-MM-DD" or "").
-Rectangle {
+Item {
     id: root
 
     property string value:       ""
@@ -20,108 +19,89 @@ Rectangle {
     }
 
     implicitHeight: 36
-    radius: Theme.radiusSm
-    color: _theme.bgItem
-    border.color: (dateField.activeFocus || calPopup.visible) ? _theme.accent : _theme.border
-    border.width: 1
+    implicitWidth:  200
 
-    Behavior on border.color { ColorAnimation { duration: 100 } }
+    property bool _open: false
 
-    // Parse value string to a JS Date (falls back to today)
     function _parseDate() {
         var m = root.value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
         if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]))
         return new Date()
     }
 
-    RowLayout {
-        anchors { fill: parent; leftMargin: 8; rightMargin: 4 }
-        spacing: 4
+    // ── Field row ───────────────────────────────────────────────────────────
+    Rectangle {
+        id: fieldRect
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        height: 36
+        radius: Theme.radiusSm
+        color: _theme.bgItem
+        border.color: root._open ? _theme.accent : (fieldArea.containsMouse ? _theme.accent : _theme.border)
+        border.width: 1
+        Behavior on border.color { ColorAnimation { duration: 100 } }
 
-        TextField {
-            id: dateField
-            Layout.fillWidth: true
-            text: root.value
-            placeholderText: root.placeholder
-            placeholderTextColor: _theme.textMuted
-            color: _theme.textPrimary
-            font.pixelSize: Theme.fontMd
-            selectByMouse: true
-            readOnly: true
-            onPressed: calPopup.visible ? calPopup.close() : calPopup.open()
-            background: Item {}    // styled by parent Rectangle
+        MouseArea {
+            id: fieldArea
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root._open = !root._open
         }
 
-        // Calendar toggle button
-        Rectangle {
-            width: 26; height: 26
-            radius: Theme.radiusSm
-            color: calBtnArea.containsMouse ? _theme.bgHover : "transparent"
-            Behavior on color { ColorAnimation { duration: 80 } }
+        RowLayout {
+            anchors { fill: parent; leftMargin: 10; rightMargin: 8 }
+            spacing: 6
+            // pass mouse events through to fieldArea
+            enabled: false
 
-            Image {
-                anchors.centerIn: parent
-                source: Theme.iconsPath + "calendar.svg"
-                width: 14; height: 14
-                fillMode: Image.PreserveAspectFit
-                opacity: calBtnArea.containsMouse || calPopup.visible ? 1.0 : 0.6
+            Text {
+                Layout.fillWidth: true
+                text: root.value !== "" ? root.value : root.placeholder
+                font.pixelSize: Theme.fontMd
+                color: root.value !== "" ? _theme.textPrimary : _theme.textMuted
+                verticalAlignment: Text.AlignVCenter
             }
 
-            MouseArea {
-                id: calBtnArea
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: calPopup.visible ? calPopup.close() : calPopup.open()
+            Image {
+                width: 14; height: 14
+                source: Theme.iconsPath + "calendar.svg"
+                fillMode: Image.PreserveAspectFit
+                opacity: fieldArea.containsMouse || root._open ? 1.0 : 0.5
             }
         }
     }
 
-    Popup {
-        id: calPopup
-        y: root.height + 6
-        x: Math.min(0, root.width - width)   // don't overflow right edge
-        width:   230
-        padding: 12
-        modal:   false
-        focus:   false
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-        background: Rectangle {
-            color:        root._theme.bgPanel
-            radius:       Theme.radiusMd
-            border.color: root._theme.border
-            border.width: 1
-
-            layer.enabled: true
-            layer.effect: null
-        }
-
-        // Drop shadow via wrapper
-        Rectangle {
-            anchors { fill: parent; margins: -1 }
-            radius: Theme.radiusMd + 1
-            color: "transparent"
-            border.color: Qt.rgba(0, 0, 0, 0.4)
-            border.width: 1
-            z: -1
-        }
+    // ── Calendar dropdown ────────────────────────────────────────────────────
+    Rectangle {
+        id: calDrop
+        anchors { left: parent.left; top: fieldRect.bottom; topMargin: 4 }
+        width:   242
+        height:  inlineCal.implicitHeight + 24
+        radius:  Theme.radiusMd
+        color:   _theme.bgPanel
+        border.color: _theme.accent
+        border.width: 1
+        visible: root._open
+        z: 999
 
         FocusMonthCalendar {
             id: inlineCal
-            width:   calPopup.width - calPopup.padding * 2
-            height:  implicitHeight
+            anchors { fill: parent; margins: 12 }
             service: root.service
-
             selectedDate: root._parseDate()
-
             onDateSelected: function(d) {
                 root.value = Qt.formatDate(d, "yyyy-MM-dd")
-                calPopup.close()
+                root._open = false
             }
         }
+    }
 
-        // size popup to calendar content
-        height: inlineCal.height + calPopup.padding * 2
+    // Close when clicking outside
+    MouseArea {
+        anchors.fill: parent
+        anchors.margins: -9999
+        z: root._open ? 998 : -1
+        enabled: root._open
+        onClicked: root._open = false
     }
 }
