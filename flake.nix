@@ -8,22 +8,29 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { nixpkgs, rust-overlay, flake-utils, ... }:
+  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
     let
       # Home-manager module is system-independent
       homeManagerModules.default = import ./nix/hm-module.nix;
+
+      # Overlay: adds pkgs.focusctl to any nixpkgs instance
+      overlays.default = final: prev: {
+        focusctl = final.callPackage ./nix/package.nix {};
+      };
     in
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlays = [ (import rust-overlay) ];
-        pkgs     = import nixpkgs { inherit system overlays; };
-        rust     = pkgs.rust-bin.stable.latest.default.override {
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ (import rust-overlay) overlays.default ];
+        };
+        rust = pkgs.rust-bin.stable.latest.default.override {
           extensions = [ "rust-src" "rust-analyzer" "clippy" "rustfmt" ];
         };
       in {
-        # Buildable package: nix build .#focusctl
-        packages.focusctl = pkgs.callPackage ./nix/package.nix {};
-        packages.default  = pkgs.callPackage ./nix/package.nix {};
+        # nix build .#focusctl
+        packages.focusctl = pkgs.focusctl;
+        packages.default  = pkgs.focusctl;
 
         devShells.default = pkgs.mkShell {
           buildInputs = [
@@ -35,9 +42,9 @@
           shellHook = ''
             echo "rust $(rustc --version)"
             echo ""
-            echo "Run UI: quickshell -p quickshell/shell.qml"
+            echo "Run UI: ./debugger.sh"
             echo "Run CLI: cargo run -p focusctl --"
           '';
         };
-      }) // { inherit homeManagerModules; };
+      }) // { inherit homeManagerModules; inherit overlays; };
 }
