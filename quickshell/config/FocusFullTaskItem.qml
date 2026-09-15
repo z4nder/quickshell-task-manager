@@ -182,7 +182,7 @@ Rectangle {
         // Edit button
         Rectangle {
             width: 26; height: 26; radius: Theme.radiusSm
-            color: editIconArea.containsMouse ? _theme.bgHover : "transparent"
+            color: editIconArea.containsMouse ? _theme.bgHover : Qt.rgba(1,1,1,0.06)
             opacity: hArea.containsMouse ? 1.0 : 0
             Behavior on opacity { NumberAnimation { duration: 120 } }
             Behavior on color   { ColorAnimation  { duration: 100 } }
@@ -191,7 +191,7 @@ Rectangle {
                 source: Theme.iconsPath + "pencil-square.svg"
                 width: 14; height: 14
                 fillMode: Image.PreserveAspectFit
-                opacity: editIconArea.containsMouse ? 1.0 : 0.6
+                opacity: editIconArea.containsMouse ? 1.0 : 0.75
             }
             MouseArea {
                 id: editIconArea
@@ -202,14 +202,16 @@ Rectangle {
             }
         }
 
-        // Delete button
+        // Delete button — always danger-tinted when row is hovered
         Rectangle {
+            id: deleteBtn
             width: 26; height: 26; radius: Theme.radiusSm
-            color: deleteIconArea.containsMouse ? Qt.rgba(
-                parseInt(_theme.danger.slice(1,3), 16) / 255,
-                parseInt(_theme.danger.slice(3,5), 16) / 255,
-                parseInt(_theme.danger.slice(5,7), 16) / 255,
-                0.18) : "transparent"
+            property real dr: parseInt(_theme.danger.slice(1,3), 16) / 255
+            property real dg: parseInt(_theme.danger.slice(3,5), 16) / 255
+            property real db: parseInt(_theme.danger.slice(5,7), 16) / 255
+            color: deleteIconArea.containsMouse
+                ? Qt.rgba(dr, dg, db, 0.30)
+                : Qt.rgba(dr, dg, db, 0.14)
             opacity: hArea.containsMouse ? 1.0 : 0
             Behavior on opacity { NumberAnimation { duration: 120 } }
             Behavior on color   { ColorAnimation  { duration: 100 } }
@@ -218,7 +220,7 @@ Rectangle {
                 source: Theme.iconsPath + "trash.svg"
                 width: 14; height: 14
                 fillMode: Image.PreserveAspectFit
-                opacity: deleteIconArea.containsMouse ? 1.0 : 0.6
+                opacity: deleteIconArea.containsMouse ? 1.0 : 0.85
             }
             MouseArea {
                 id: deleteIconArea

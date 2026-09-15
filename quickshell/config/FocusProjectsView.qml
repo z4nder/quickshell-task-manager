@@ -205,21 +205,22 @@ Rectangle {
                     // Hover action icons
                     RowLayout {
                         anchors { top: parent.top; right: parent.right; topMargin: 5; rightMargin: 6 }
-                        spacing: 3
+                        spacing: 4
                         opacity: projCard.hovered ? 1 : 0
                         Behavior on opacity { NumberAnimation { duration: 120 } }
 
+                        // Edit button
                         Rectangle {
-                            width: 22; height: 22
-                            radius: Theme.radiusSm
-                            color: cardEditArea.containsMouse ? Qt.rgba(1,1,1,0.08) : "transparent"
+                            width: 26; height: 26; radius: Theme.radiusSm
+                            color: cardEditArea.containsMouse ? _theme.bgHover : Qt.rgba(1,1,1,0.06)
+                            Behavior on color { ColorAnimation { duration: 100 } }
 
                             Image {
                                 anchors.centerIn: parent
                                 source: Theme.iconsPath + "pencil-square.svg"
-                                width: 12; height: 12
+                                width: 14; height: 14
                                 fillMode: Image.PreserveAspectFit
-                                opacity: 0.75
+                                opacity: cardEditArea.containsMouse ? 1.0 : 0.75
                             }
 
                             MouseArea {
@@ -231,22 +232,23 @@ Rectangle {
                             }
                         }
 
+                        // Delete button — danger-tinted always
                         Rectangle {
-                            width: 22; height: 22
-                            radius: Theme.radiusSm
-                            color: cardDeleteArea.containsMouse ? Qt.rgba(
-                                parseInt(_theme.danger.slice(1,3), 16) / 255,
-                                parseInt(_theme.danger.slice(3,5), 16) / 255,
-                                parseInt(_theme.danger.slice(5,7), 16) / 255,
-                                0.18
-                            ) : "transparent"
+                            width: 26; height: 26; radius: Theme.radiusSm
+                            property real dr: parseInt(_theme.danger.slice(1,3), 16) / 255
+                            property real dg: parseInt(_theme.danger.slice(3,5), 16) / 255
+                            property real db: parseInt(_theme.danger.slice(5,7), 16) / 255
+                            color: cardDeleteArea.containsMouse
+                                ? Qt.rgba(dr, dg, db, 0.30)
+                                : Qt.rgba(dr, dg, db, 0.14)
+                            Behavior on color { ColorAnimation { duration: 100 } }
 
                             Image {
                                 anchors.centerIn: parent
                                 source: Theme.iconsPath + "trash.svg"
-                                width: 12; height: 12
+                                width: 14; height: 14
                                 fillMode: Image.PreserveAspectFit
-                                opacity: 0.75
+                                opacity: cardDeleteArea.containsMouse ? 1.0 : 0.85
                             }
 
                             MouseArea {
