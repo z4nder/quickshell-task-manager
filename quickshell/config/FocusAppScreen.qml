@@ -802,67 +802,134 @@ Rectangle {
                     }
 
                     // Add task input row
-                    RowLayout {
+                    ColumnLayout {
                         Layout.fillWidth: true
                         Layout.leftMargin: 16
                         Layout.rightMargin: 12
                         Layout.topMargin: 6
                         Layout.bottomMargin: 12
-                        spacing: 8
+                        spacing: 6
 
-                        // Estimated mins — visible when either field is focused
-                        TextField {
-                            id: estMinsField
-                            text: "30"
-                            visible: addTaskField.activeFocus || estMinsField.activeFocus
-                            inputMethodHints: Qt.ImhDigitsOnly
-                            validator: IntValidator { bottom: 1; top: 999 }
-                            font.pixelSize: Theme.fontSm
-                            color: _theme.textPrimary
-                            implicitWidth: 48
-                            horizontalAlignment: Text.AlignHCenter
-                            background: Rectangle {
-                                color: _theme.bgItem
-                                radius: Theme.radiusSm
-                            }
-                            Keys.onReturnPressed: addTaskField._submit()
-                            Keys.onEscapePressed: { addTaskField.text = ""; addTaskField.focus = false }
-                        }
+                        property var _addProjectId: null
 
-                        Text {
-                            text: "min"
-                            visible: addTaskField.activeFocus || estMinsField.activeFocus
-                            font.pixelSize: Theme.fontSm
-                            color: _theme.textMuted
-                        }
-
-                        TextField {
-                            id: addTaskField
+                        // Project selector row — visible when add field is focused
+                        Flow {
                             Layout.fillWidth: true
-                            placeholderText: "Nova tarefa..."
-                            color: _theme.textPrimary
-                            placeholderTextColor: _theme.textMuted
-                            font.pixelSize: Theme.fontMd
-                            background: Rectangle { color: "transparent" }
+                            spacing: 6
+                            visible: addTaskField.activeFocus || estMinsField.activeFocus
 
-                            function _submit() {
-                                var title = text.trim()
-                                if (title === "" || !service) return
-                                var mins = parseInt(estMinsField.text) || 0
-                                if (tabRow.currentTab === 0) {
-                                    var iso = Qt.formatDate(root.selectedDate, "yyyy-MM-dd")
-                                    service.addTask(title, iso, mins)
-                                } else {
-                                    service.addTask(title, null, mins)
+                            // "None" pill
+                            Rectangle {
+                                property bool active: parent.parent._addProjectId === null
+                                implicitWidth:  addNoneLabel.implicitWidth + 14
+                                implicitHeight: 22
+                                radius: 11
+                                color:  active ? Qt.rgba(1,1,1,0.15) : "transparent"
+                                border.color: active ? _theme.textSecondary : _theme.border
+                                border.width: 1
+                                Text {
+                                    id: addNoneLabel
+                                    anchors.centerIn: parent
+                                    text: "Nenhum"
+                                    font.pixelSize: Theme.fontSm
+                                    color: active ? _theme.textPrimary : _theme.textMuted
                                 }
-                                text = ""
-                                estMinsField.text = "30"
-                                addTaskField.focus = false
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: parent.parent.parent._addProjectId = null
+                                }
                             }
 
-                            Keys.onReturnPressed: _submit()
-                            Keys.onTabPressed:    { estMinsField.forceActiveFocus(); event.accepted = true }
-                            Keys.onEscapePressed: { text = ""; focus = false }
+                            Repeater {
+                                model: service ? service.projects : []
+                                delegate: Rectangle {
+                                    property string pColor: modelData.color || "#888"
+                                    property bool   active: parent.parent._addProjectId === modelData.id
+                                    implicitWidth:  projPillLbl.implicitWidth + 14
+                                    implicitHeight: 22
+                                    radius: 11
+                                    color: active
+                                        ? Qt.rgba(parseInt(pColor.slice(1,3),16)/255, parseInt(pColor.slice(3,5),16)/255, parseInt(pColor.slice(5,7),16)/255, 0.35)
+                                        : Qt.rgba(parseInt(pColor.slice(1,3),16)/255, parseInt(pColor.slice(3,5),16)/255, parseInt(pColor.slice(5,7),16)/255, 0.12)
+                                    border.color: Qt.rgba(parseInt(pColor.slice(1,3),16)/255, parseInt(pColor.slice(3,5),16)/255, parseInt(pColor.slice(5,7),16)/255, active ? 0.9 : 0.45)
+                                    border.width: 1
+                                    Text {
+                                        id: projPillLbl
+                                        anchors.centerIn: parent
+                                        text: modelData.name || ""
+                                        font.pixelSize: Theme.fontSm
+                                        color: pColor
+                                    }
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: parent.parent.parent._addProjectId = modelData.id
+                                    }
+                                }
+                            }
+                        }
+
+                        // Mins + task name row
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            TextField {
+                                id: estMinsField
+                                text: "30"
+                                visible: addTaskField.activeFocus || estMinsField.activeFocus
+                                inputMethodHints: Qt.ImhDigitsOnly
+                                validator: IntValidator { bottom: 1; top: 999 }
+                                font.pixelSize: Theme.fontSm
+                                color: _theme.textPrimary
+                                implicitWidth: 48
+                                horizontalAlignment: Text.AlignHCenter
+                                background: Rectangle {
+                                    color: _theme.bgItem
+                                    radius: Theme.radiusSm
+                                }
+                                Keys.onReturnPressed: addTaskField._submit()
+                                Keys.onEscapePressed: { addTaskField.text = ""; addTaskField.focus = false }
+                            }
+
+                            Text {
+                                text: "min"
+                                visible: addTaskField.activeFocus || estMinsField.activeFocus
+                                font.pixelSize: Theme.fontSm
+                                color: _theme.textMuted
+                            }
+
+                            TextField {
+                                id: addTaskField
+                                Layout.fillWidth: true
+                                placeholderText: "Nova tarefa..."
+                                color: _theme.textPrimary
+                                placeholderTextColor: _theme.textMuted
+                                font.pixelSize: Theme.fontMd
+                                background: Rectangle { color: "transparent" }
+
+                                function _submit() {
+                                    var title = text.trim()
+                                    if (title === "" || !service) return
+                                    var mins = parseInt(estMinsField.text) || 0
+                                    var pid  = parent.parent._addProjectId
+                                    if (tabRow.currentTab === 0) {
+                                        var iso = Qt.formatDate(root.selectedDate, "yyyy-MM-dd")
+                                        service.addTask(title, iso, mins, pid)
+                                    } else {
+                                        service.addTask(title, null, mins, pid)
+                                    }
+                                    text = ""
+                                    estMinsField.text = "30"
+                                    parent.parent._addProjectId = null
+                                    addTaskField.focus = false
+                                }
+
+                                Keys.onReturnPressed: _submit()
+                                Keys.onTabPressed:    { estMinsField.forceActiveFocus(); event.accepted = true }
+                                Keys.onEscapePressed: { text = ""; focus = false }
+                            }
                         }
                     }
                 }
