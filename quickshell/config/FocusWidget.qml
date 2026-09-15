@@ -37,12 +37,10 @@ Item {
         }
     }
 
-    // ── Toggle via file watch (/tmp/focus-notch-toggle) ──────────────────
-    // Keybind runs: date +%s > /tmp/focus-notch-toggle
-    FileView {
-        path: "/tmp/focus-notch-toggle"
-        watchChanges: true
-        onTextChanged: appWin.visible = !appWin.visible
+    // ── IPC — quickshell ipc call focus toggle ────────────────────────────
+    IpcHandler {
+        target: "focus"
+        function toggle() { if (root.visible) appWin.visible = !appWin.visible }
     }
 
     // ── Badge (inline in bar) ─────────────────────────────────────────────
