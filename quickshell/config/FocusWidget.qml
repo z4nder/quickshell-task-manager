@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 
 // Drop-in widget for Bar.qml's right Row.
 // Usage: FocusWidget { barWindow: root }
@@ -14,7 +15,6 @@ Item {
     // ── Service ───────────────────────────────────────────────────────────
     FocusService {
         id: svc
-        focusBin: "/home/zander/projects/2026/quickshell-task-manager/target/debug/focusctl"
     }
 
     // ── Hover state ───────────────────────────────────────────────────────
@@ -35,6 +35,14 @@ Item {
         } else {
             hideDelay.restart()
         }
+    }
+
+    // ── Toggle via file watch (/tmp/focus-notch-toggle) ──────────────────
+    // Keybind runs: date +%s > /tmp/focus-notch-toggle
+    FileView {
+        path: "/tmp/focus-notch-toggle"
+        watchChanges: true
+        onTextChanged: appWin.visible = !appWin.visible
     }
 
     // ── Badge (inline in bar) ─────────────────────────────────────────────

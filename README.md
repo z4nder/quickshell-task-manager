@@ -45,8 +45,8 @@ Track tasks, projects and focused time without leaving your workflow — click t
 ### Option A — Generic Linux (any distro)
 
 ```bash
-git clone https://github.com/your-user/focus-notch
-cd focus-notch
+git clone https://github.com/z4nder/quickshell-task-manager
+cd quickshell-task-manager
 ./install.sh
 ```
 
@@ -75,7 +75,9 @@ Add the flake input:
 inputs.quickshell-task-manager.url = "github:z4nder/quickshell-task-manager";
 ```
 
-Add the overlay (exposes `pkgs.focusctl`) and the home-manager module:
+#### B.1 — Standalone (focus-notch is your entire Quickshell config)
+
+Add the overlay and home-manager module:
 
 ```nix
 # In your nixpkgs overlays list
@@ -85,13 +87,52 @@ quickshell-task-manager.overlays.default
 quickshell-task-manager.homeManagerModules.default
 ```
 
-Then enable in your home config:
+Enable in your home config:
 
 ```nix
 programs.focus-notch.enable = true;
 ```
 
-The module deploys the `focusctl` binary, all QML components, icons and `themes.json` automatically.
+The module deploys `focusctl`, all QML components, icons and `themes.json` to `~/.config/quickshell/`. Launch with:
+
+```bash
+quickshell -p ~/.config/quickshell
+```
+
+#### B.2 — Embedded (you have an existing Quickshell bar)
+
+> **Important:** QML resolves imports by the real (resolved) path of `shell.qml`, not the symlink.
+> If your bar config and the focus-notch files live in separate Nix store paths, imports will fail.
+> You must merge both into a single store path using `pkgs.runCommand`.
+
+Pass the flake input to your NixOS module via `specialArgs`:
+
+```nix
+# flake.nix — in your mkHost / nixosSystem call
+specialArgs = { ...; inherit quickshell-task-manager; };
+```
+
+Then in the module that manages your Quickshell config:
+
+```nix
+{ pkgs, quickshell-task-manager, ... }:
+let
+  quickshellConfig = pkgs.runCommand "quickshell-merged-config" {} ''
+    mkdir $out
+    cp -r ${./your-bar-config}/. $out/          # your shell.qml, Bar.qml, etc.
+    cp -r ${quickshell-task-manager}/quickshell/config/. $out/  # focus-notch QML
+  '';
+in {
+  home.packages = [ pkgs.focusctl ];            # from overlay
+  home.file.".config/quickshell".source = quickshellConfig;
+}
+```
+
+Add `FocusWidget` to your bar:
+
+```qml
+FocusWidget { barWindow: root }
+```
 
 > **Note — `cargoHash` mismatch:** if you get a hash mismatch error after updating the flake, run:
 > ```bash
