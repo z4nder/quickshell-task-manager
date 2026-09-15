@@ -178,11 +178,16 @@ Item {
         }
     }
 
-    // ── Hover detection ───────────────────────────────────────────────────
+    // ── Hover + click ────────────────────────────────────────────────────
     MouseArea {
         anchors.fill: parent
         hoverEnabled: true
+        cursorShape: (service && service.sessionActive) ? Qt.PointingHandCursor : Qt.ArrowCursor
         onEntered: root.hovered(true)
         onExited:  root.hovered(false)
+        onClicked: {
+            if (!service || !service.sessionActive) return
+            service.sessionPaused ? service.resumeSession() : service.pauseSession()
+        }
     }
 }
