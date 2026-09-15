@@ -10,7 +10,8 @@ Rectangle {
     readonly property var _theme: (service && service.themeData) ? service.themeData : {
         bg: Theme.bg, bgPanel: Theme.bgPanel, bgItem: Theme.bgItem, bgHover: Theme.bgHover,
         textPrimary: Theme.textPrimary, textSecondary: Theme.textSecondary, textMuted: Theme.textMuted,
-        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border
+        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border,
+        accentAlt: Theme.accentAlt, danger: Theme.danger, warning: Theme.warning
     }
 
     color: "transparent"
@@ -26,16 +27,20 @@ Rectangle {
         return count
     }
 
-    function statusColor(status) {
-        if (status === "InProgress")  return _theme.accent
-        if (status === "Completed")   return "#4caf50"
-        return _theme.textMuted
+    // Kanban column classification
+    function columnForStatus(status) {
+        if (!status) return 0
+        var s = status.toLowerCase()
+        if (s === "done" || s === "completed" || s === "finished") return 2
+        if (s === "active" || s === "inprogress" || s === "in_progress") return 1
+        return 0  // backlog / planning / created / anything else
     }
 
-    function statusLabel(status) {
-        if (status === "InProgress")  return "In Progress"
-        if (status === "Completed")   return "Completed"
-        return "Created"
+    function projectsForColumn(col) {
+        if (!service || !service.projects) return []
+        return service.projects.filter(function(p) {
+            return root.columnForStatus(p.status) === col
+        })
     }
 
     // ── New-project modal state ───────────────────────────────────────────────
@@ -44,34 +49,37 @@ Rectangle {
     property bool _editMode:     false
     property var  _editTarget:   null
 
-    property string _fieldName:      ""
-    property string _fieldColor:     "#e53935"
-    property string _fieldStatus:    "Created"
-    property string _fieldStartDate: ""
-    property string _fieldEndDate:   ""
-    property string _fieldEstMins:   ""
+    property string _fieldName:        ""
+    property string _fieldColor:       "#e53935"
+    property string _fieldStatus:      "Created"
+    property string _fieldStartDate:   ""
+    property string _fieldEndDate:     ""
+    property string _fieldEstMins:     ""
+    property string _fieldDescription: ""
 
     function _openNew() {
-        _editMode     = false
-        _editTarget   = null
-        _fieldName      = ""
-        _fieldColor     = "#e53935"
-        _fieldStatus    = "Created"
-        _fieldStartDate = ""
-        _fieldEndDate   = ""
-        _fieldEstMins   = ""
+        _editMode        = false
+        _editTarget      = null
+        _fieldName        = ""
+        _fieldColor       = "#e53935"
+        _fieldStatus      = "Created"
+        _fieldStartDate   = ""
+        _fieldEndDate     = ""
+        _fieldEstMins     = ""
+        _fieldDescription = ""
         _showModal = true
     }
 
     function _openEdit(project) {
-        _editMode     = true
-        _editTarget   = project
-        _fieldName      = project.name      || ""
-        _fieldColor     = project.color     || "#e53935"
-        _fieldStatus    = project.status    || "Created"
-        _fieldStartDate = project.start_date || ""
-        _fieldEndDate   = project.end_date   || ""
-        _fieldEstMins   = project.estimated_mins ? String(project.estimated_mins) : ""
+        _editMode        = true
+        _editTarget      = project
+        _fieldName        = project.name        || ""
+        _fieldColor       = project.color       || "#e53935"
+        _fieldStatus      = project.status      || "Created"
+        _fieldStartDate   = project.start_date  || ""
+        _fieldEndDate     = project.end_date    || ""
+        _fieldEstMins     = project.estimated_mins ? String(project.estimated_mins) : ""
+        _fieldDescription = project.description || ""
         _showModal = true
     }
 
@@ -101,6 +109,226 @@ Rectangle {
         _showModal = false
     }
 
+    // ── Kanban column component ───────────────────────────────────────────────
+
+    component KanbanColumn: Rectangle {
+        id: colRoot
+        property string columnTitle: ""
+        property var    projects:    []
+        property color  accentCol:   _theme.accent
+
+        color: Qt.rgba(0, 0, 0, 0.12)
+        radius: Theme.radiusMd
+
+        ColumnLayout {
+            anchors { fill: parent; margins: 10 }
+            spacing: 8
+
+            // Column header
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Rectangle {
+                    width: 8; height: 8; radius: 4
+                    color: colRoot.accentCol
+                }
+
+                Text {
+                    text: colRoot.columnTitle
+                    font.pixelSize: Theme.fontMd
+                    font.weight: Font.SemiBold
+                    color: _theme.textPrimary
+                    Layout.fillWidth: true
+                }
+
+                Rectangle {
+                    implicitWidth:  colCountLbl.implicitWidth + 8
+                    implicitHeight: 18
+                    radius: 9
+                    color: _theme.bgItem
+
+                    Text {
+                        id: colCountLbl
+                        anchors.centerIn: parent
+                        text: String(colRoot.projects.length)
+                        font.pixelSize: Theme.fontSm
+                        color: _theme.textSecondary
+                    }
+                }
+            }
+
+            // Divider
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: _theme.border
+                opacity: 0.5
+            }
+
+            // Project cards
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: 6
+                model: colRoot.projects
+
+                delegate: Rectangle {
+                    id: projCard
+                    property var project: modelData
+                    property bool hovered: false
+
+                    width:  parent ? parent.width : 0
+                    height: projCardCol.implicitHeight + 16
+                    radius: Theme.radiusSm
+                    color:  projCard.hovered ? _theme.bgHover : _theme.bgItem
+
+                    Behavior on color { ColorAnimation { duration: 100 } }
+
+                    // Left accent bar
+                    Rectangle {
+                        id: cardAccentBar
+                        width: 3
+                        anchors { left: parent.left; top: parent.top; bottom: parent.bottom; topMargin: 4; bottomMargin: 4 }
+                        radius: 2
+                        color: projCard.project.color || _theme.accent
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        acceptedButtons: Qt.NoButton
+                        onContainsMouseChanged: projCard.hovered = containsMouse
+                    }
+
+                    // Hover action icons
+                    RowLayout {
+                        anchors { top: parent.top; right: parent.right; topMargin: 5; rightMargin: 6 }
+                        spacing: 3
+                        opacity: projCard.hovered ? 1 : 0
+                        Behavior on opacity { NumberAnimation { duration: 120 } }
+
+                        Rectangle {
+                            width: 22; height: 22
+                            radius: Theme.radiusSm
+                            color: cardEditArea.containsMouse ? Qt.rgba(1,1,1,0.08) : "transparent"
+
+                            Image {
+                                anchors.centerIn: parent
+                                source: Theme.iconsPath + "pencil-square.svg"
+                                width: 12; height: 12
+                                fillMode: Image.PreserveAspectFit
+                                opacity: 0.75
+                            }
+
+                            MouseArea {
+                                id: cardEditArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root._openEdit(projCard.project)
+                            }
+                        }
+
+                        Rectangle {
+                            width: 22; height: 22
+                            radius: Theme.radiusSm
+                            color: cardDeleteArea.containsMouse ? Qt.rgba(
+                                parseInt(_theme.danger.slice(1,3), 16) / 255,
+                                parseInt(_theme.danger.slice(3,5), 16) / 255,
+                                parseInt(_theme.danger.slice(5,7), 16) / 255,
+                                0.18
+                            ) : "transparent"
+
+                            Image {
+                                anchors.centerIn: parent
+                                source: Theme.iconsPath + "trash.svg"
+                                width: 12; height: 12
+                                fillMode: Image.PreserveAspectFit
+                                opacity: 0.75
+                            }
+
+                            MouseArea {
+                                id: cardDeleteArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    if (service) service.deleteProject(projCard.project.id)
+                                }
+                            }
+                        }
+                    }
+
+                    // Card content
+                    ColumnLayout {
+                        id: projCardCol
+                        anchors {
+                            left:   cardAccentBar.right
+                            right:  parent.right
+                            top:    parent.top
+                            leftMargin: 8; rightMargin: 8; topMargin: 8
+                        }
+                        spacing: 4
+
+                        // Project name
+                        Text {
+                            text: projCard.project.name || ""
+                            font.pixelSize: Theme.fontMd
+                            font.weight: Font.DemiBold
+                            color: _theme.textPrimary
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                            Layout.rightMargin: projCard.hovered ? 50 : 0
+                        }
+
+                        // Task count + estimated mins row
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+
+                            Text {
+                                text: root.taskCountForProject(projCard.project.id) + " tarefa" +
+                                      (root.taskCountForProject(projCard.project.id) === 1 ? "" : "s")
+                                font.pixelSize: Theme.fontSm
+                                color: _theme.textMuted
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            Text {
+                                visible: projCard.project.estimated_mins > 0
+                                text: projCard.project.estimated_mins + "min"
+                                font.pixelSize: Theme.fontSm
+                                color: _theme.textMuted
+                            }
+                        }
+
+                        // Dates
+                        Text {
+                            visible: (projCard.project.start_date || "") !== ""
+                                  || (projCard.project.end_date   || "") !== ""
+                            text: {
+                                var s = projCard.project.start_date || ""
+                                var e = projCard.project.end_date   || ""
+                                if (s && e) return s + " → " + e
+                                if (s)      return "De " + s
+                                if (e)      return "Até " + e
+                                return ""
+                            }
+                            font.pixelSize: Theme.fontSm
+                            color: _theme.textMuted
+                            Layout.fillWidth: true
+                        }
+                    }
+                }
+
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+            }
+        }
+    }
+
     // ── Main layout ───────────────────────────────────────────────────────────
 
     ColumnLayout {
@@ -113,7 +341,7 @@ Rectangle {
             spacing: 10
 
             Text {
-                text: "Projects"
+                text: "Projetos"
                 font.pixelSize: Theme.fontXl
                 font.weight: Font.Medium
                 color: _theme.textPrimary
@@ -131,7 +359,7 @@ Rectangle {
                 Text {
                     id: newBtnLabel
                     anchors.centerIn: parent
-                    text: "+ New project"
+                    text: "+ Novo projeto"
                     font.pixelSize: Theme.fontSm
                     color: "white"
                 }
@@ -146,188 +374,34 @@ Rectangle {
             }
         }
 
-        // Empty state
-        Item {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            visible: !service || !service.projects || service.projects.length === 0
-
-            Text {
-                anchors.centerIn: parent
-                text: "No projects yet"
-                font.pixelSize: Theme.fontMd
-                color: _theme.textMuted
-            }
-        }
-
-        // Project grid (Flow layout)
-        Flow {
-            id: projectsGrid
+        // Kanban columns
+        RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 10
-            visible: service && service.projects && service.projects.length > 0
 
-            Repeater {
-                model: service ? service.projects : []
+            KanbanColumn {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                columnTitle: "Backlog"
+                projects: root.projectsForColumn(0)
+                accentCol: _theme.textMuted
+            }
 
-                delegate: Rectangle {
-                    id: card
+            KanbanColumn {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                columnTitle: "Em progresso"
+                projects: root.projectsForColumn(1)
+                accentCol: _theme.accent
+            }
 
-                    property var project: modelData
-                    property bool hovered: false
-
-                    width:  208
-                    height: cardCol.implicitHeight + 20
-                    radius: Theme.radiusMd
-                    color:  _theme.bgItem
-
-                    // Left colored border accent
-                    Rectangle {
-                        id: leftAccent
-                        width:   4
-                        anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                        radius:  Theme.radiusSm
-                        color:   card.project.color || _theme.accent
-                    }
-
-                    MouseArea {
-                        id: cardHoverArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        acceptedButtons: Qt.NoButton
-                        onContainsMouseChanged: card.hovered = containsMouse
-                    }
-
-                    // Hover action icons (top-right)
-                    RowLayout {
-                        anchors { top: parent.top; right: parent.right; topMargin: 6; rightMargin: 6 }
-                        spacing: 4
-                        opacity: card.hovered ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: 120 } }
-
-                        // Edit
-                        Rectangle {
-                            width: 24; height: 24
-                            radius: Theme.radiusSm
-                            color: editIconArea.containsMouse ? _theme.bgHover : "transparent"
-
-                            Image {
-                                anchors.centerIn: parent
-                                source: Theme.iconsPath + "pencil-square.svg"
-                                width: 14; height: 14
-                                fillMode: Image.PreserveAspectFit
-                            }
-
-                            MouseArea {
-                                id: editIconArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root._openEdit(card.project)
-                            }
-                        }
-
-                        // Delete
-                        Rectangle {
-                            width: 24; height: 24
-                            radius: Theme.radiusSm
-                            color: deleteIconArea.containsMouse ? _theme.bgHover : "transparent"
-
-                            Image {
-                                anchors.centerIn: parent
-                                source: Theme.iconsPath + "trash.svg"
-                                width: 14; height: 14
-                                fillMode: Image.PreserveAspectFit
-                            }
-
-                            MouseArea {
-                                id: deleteIconArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    if (service) service.deleteProject(card.project.id)
-                                }
-                            }
-                        }
-                    }
-
-                    // Card content
-                    ColumnLayout {
-                        id: cardCol
-                        anchors { left: leftAccent.right; right: parent.right; top: parent.top; margins: 10 }
-                        spacing: 6
-
-                        // Top row: dot + name
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 6
-
-                            Rectangle {
-                                width: 8; height: 8; radius: 4
-                                color: card.project.color || _theme.accent
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-
-                            Text {
-                                text: card.project.name || ""
-                                font.pixelSize: Theme.fontMd
-                                font.weight: Font.DemiBold
-                                color: _theme.textPrimary
-                                elide: Text.ElideRight
-                                Layout.fillWidth: true
-                            }
-                        }
-
-                        // Status badge
-                        Rectangle {
-                            implicitWidth:  statusText.implicitWidth + 12
-                            implicitHeight: 18
-                            radius: Theme.radiusSm
-                            color: _theme.bgHover
-
-                            Text {
-                                id: statusText
-                                anchors.centerIn: parent
-                                text: root.statusLabel(card.project.status)
-                                font.pixelSize: Theme.fontSm
-                                color: root.statusColor(card.project.status)
-                            }
-                        }
-
-                        // Task count
-                        Text {
-                            text: root.taskCountForProject(card.project.id) + " tasks"
-                            font.pixelSize: Theme.fontSm
-                            color: _theme.textSecondary
-                        }
-
-                        // Estimated mins
-                        Text {
-                            visible: card.project.estimated_mins > 0
-                            text:    (card.project.estimated_mins || 0) + "min est."
-                            font.pixelSize: Theme.fontSm
-                            color: _theme.textMuted
-                        }
-
-                        // Dates
-                        Text {
-                            visible: (card.project.start_date || "") !== ""
-                                  || (card.project.end_date   || "") !== ""
-                            text: {
-                                var s = card.project.start_date || ""
-                                var e = card.project.end_date   || ""
-                                if (s && e) return s + " - " + e
-                                if (s)      return "From " + s
-                                if (e)      return "Until " + e
-                                return ""
-                            }
-                            font.pixelSize: Theme.fontSm
-                            color: _theme.textMuted
-                        }
-                    }
-                }
+            KanbanColumn {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                columnTitle: "Concluído"
+                projects: root.projectsForColumn(2)
+                accentCol: _theme.accentAlt
             }
         }
     }
@@ -344,7 +418,7 @@ Rectangle {
 
         Rectangle {
             anchors.centerIn: parent
-            width:  340
+            width:  480
             height: modalCol.implicitHeight + 40
             color:  _theme.bgPanel
             radius: Theme.radiusMd
@@ -362,7 +436,7 @@ Rectangle {
                     spacing: 8
 
                     Text {
-                        text: root._editMode ? "Edit project" : "New project"
+                        text: root._editMode ? "Editar projeto" : "Novo projeto"
                         font.pixelSize: Theme.fontLg
                         font.weight: Font.Medium
                         color: _theme.textPrimary
@@ -376,7 +450,7 @@ Rectangle {
 
                         Text {
                             anchors.centerIn: parent
-                            text: "x"
+                            text: "✕"
                             font.pixelSize: Theme.fontSm
                             color: _theme.textMuted
                         }
@@ -400,7 +474,7 @@ Rectangle {
                     spacing: 5
 
                     Text {
-                        text: "Name"
+                        text: "Nome"
                         font.pixelSize: Theme.fontSm
                         color: _theme.textSecondary
                     }
@@ -409,7 +483,7 @@ Rectangle {
                         id: nameField
                         Layout.fillWidth: true
                         text: root._fieldName
-                        placeholderText: "Project name"
+                        placeholderText: "Nome do projeto"
                         placeholderTextColor: _theme.textMuted
                         color: _theme.textPrimary
                         font.pixelSize: Theme.fontMd
@@ -425,37 +499,81 @@ Rectangle {
                     }
                 }
 
+                // Description
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 5
+
+                    Text {
+                        text: "Descrição"
+                        font.pixelSize: Theme.fontSm
+                        color: _theme.textSecondary
+                    }
+
+                    ScrollView {
+                        Layout.fillWidth: true
+                        implicitHeight: 90
+                        clip: true
+
+                        TextArea {
+                            id: descField
+                            width: parent.width
+                            font.pixelSize: Theme.fontMd
+                            color: _theme.textPrimary
+                            placeholderText: "Descreva o projeto…"
+                            placeholderTextColor: _theme.textMuted
+                            wrapMode: TextEdit.Wrap
+                            text: root._fieldDescription
+                            onTextChanged: root._fieldDescription = text
+                            background: Rectangle {
+                                color: _theme.bgItem
+                                radius: Theme.radiusSm
+                                border.color: descField.activeFocus ? _theme.accent : _theme.border
+                                border.width: 1
+                            }
+                            leftPadding: 10; rightPadding: 10; topPadding: 8; bottomPadding: 8
+                            Keys.onEscapePressed: root._showModal = false
+                        }
+                    }
+                }
+
                 // Color picker
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 5
 
                     Text {
-                        text: "Color"
+                        text: "Cor"
                         font.pixelSize: Theme.fontSm
                         color: _theme.textSecondary
                     }
 
-                    RowLayout {
-                        spacing: 8
+                    Grid {
+                        columns: 10
+                        spacing: 6
                         Layout.fillWidth: true
 
                         Repeater {
-                            model: ["#e53935", "#4caf50", "#2196f3", "#ff9800", "#9c27b0", "#00bcd4"]
+                            model: [
+                                "#EF4444", "#F97316", "#EAB308", "#22C55E", "#10B981",
+                                "#06B6D4", "#3B82F6", "#6366F1", "#8B5CF6", "#EC4899",
+                                "#F43F5E", "#FB923C", "#84CC16", "#14B8A6", "#0EA5E9",
+                                "#6D28D9", "#BE185D", "#78716C", "#94A3B8", "#FFFFFF"
+                            ]
 
                             delegate: Rectangle {
-                                width: 26; height: 26; radius: 13
+                                width: 24; height: 24; radius: 12
                                 color: modelData
-                                border.color: root._fieldColor === modelData ? "white" : "transparent"
-                                border.width: 2
+                                border.color: root._fieldColor === modelData
+                                    ? "white" : Qt.rgba(1,1,1,0.15)
+                                border.width: root._fieldColor === modelData ? 2 : 1
 
-                                // Inner ring when selected
                                 Rectangle {
                                     visible: root._fieldColor === modelData
                                     anchors.centerIn: parent
-                                    width: 10; height: 10; radius: 5
+                                    width: 8; height: 8; radius: 4
                                     color: "white"
-                                    opacity: 0.8
+                                    opacity: 0.9
                                 }
 
                                 MouseArea {
@@ -485,9 +603,9 @@ Rectangle {
 
                         Repeater {
                             model: [
-                                { key: "Created",    label: "Created"     },
-                                { key: "InProgress", label: "In Progress" },
-                                { key: "Completed",  label: "Completed"   }
+                                { key: "Created",    label: "Backlog"      },
+                                { key: "InProgress", label: "Em progresso" },
+                                { key: "Completed",  label: "Concluído"    }
                             ]
 
                             delegate: Rectangle {
@@ -504,7 +622,7 @@ Rectangle {
                                     anchors.centerIn: parent
                                     text: modelData.label
                                     font.pixelSize: Theme.fontSm
-                                    color: active ? root.statusColor(modelData.key) : _theme.textMuted
+                                    color: active ? _theme.accent : _theme.textMuted
                                 }
 
                                 MouseArea {
@@ -523,7 +641,7 @@ Rectangle {
                     spacing: 5
 
                     Text {
-                        text: "Start date (optional)"
+                        text: "Data de início (opcional)"
                         font.pixelSize: Theme.fontSm
                         color: _theme.textSecondary
                     }
@@ -554,7 +672,7 @@ Rectangle {
                     spacing: 5
 
                     Text {
-                        text: "End date (optional)"
+                        text: "Data de término (opcional)"
                         font.pixelSize: Theme.fontSm
                         color: _theme.textSecondary
                     }
@@ -585,7 +703,7 @@ Rectangle {
                     spacing: 5
 
                     Text {
-                        text: "Estimated minutes (optional)"
+                        text: "Minutos estimados (opcional)"
                         font.pixelSize: Theme.fontSm
                         color: _theme.textSecondary
                     }
@@ -594,7 +712,7 @@ Rectangle {
                         id: estMinsField
                         Layout.fillWidth: true
                         text: root._fieldEstMins
-                        placeholderText: "e.g. 120"
+                        placeholderText: "ex: 120"
                         placeholderTextColor: _theme.textMuted
                         color: _theme.textPrimary
                         font.pixelSize: Theme.fontMd
@@ -622,7 +740,6 @@ Rectangle {
 
                     Item { Layout.fillWidth: true }
 
-                    // Cancel
                     Rectangle {
                         implicitWidth:  cancelLabel.implicitWidth + 20
                         implicitHeight: 30
@@ -633,7 +750,7 @@ Rectangle {
                         Text {
                             id: cancelLabel
                             anchors.centerIn: parent
-                            text: "Cancel"
+                            text: "Cancelar"
                             font.pixelSize: Theme.fontMd
                             color: _theme.textSecondary
                         }
@@ -647,7 +764,6 @@ Rectangle {
                         }
                     }
 
-                    // Create / Save
                     Rectangle {
                         implicitWidth:  submitLabel.implicitWidth + 20
                         implicitHeight: 30
@@ -659,7 +775,7 @@ Rectangle {
                         Text {
                             id: submitLabel
                             anchors.centerIn: parent
-                            text: root._editMode ? "Save" : "Create"
+                            text: root._editMode ? "Salvar" : "Criar"
                             font.pixelSize: Theme.fontMd
                             color: "white"
                         }

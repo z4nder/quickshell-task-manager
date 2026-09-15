@@ -11,7 +11,8 @@ Rectangle {
     readonly property var _theme: (service && service.themeData) ? service.themeData : {
         bg: Theme.bg, bgPanel: Theme.bgPanel, bgItem: Theme.bgItem, bgHover: Theme.bgHover,
         textPrimary: Theme.textPrimary, textSecondary: Theme.textSecondary, textMuted: Theme.textMuted,
-        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border
+        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border,
+        accentAlt: Theme.accentAlt, danger: Theme.danger, warning: Theme.warning
     }
     signal expand()
     signal panelHoveredChanged(bool h)
@@ -210,19 +211,52 @@ Rectangle {
             // Header
             RowLayout {
                 Layout.fillWidth: true
+                spacing: 8
+
                 Text {
                     text: "Tarefas"
                     font.pixelSize: Theme.fontLg
-                    font.weight: Font.Medium
+                    font.weight: Font.SemiBold
                     color: _theme.textPrimary
                     Layout.fillWidth: true
                 }
-                Image {
-                    source: Theme.iconsPath + "arrows-pointing-out.svg"
-                    width: 15; height: 15
-                    fillMode: Image.PreserveAspectFit
+
+                // Task count badge
+                Rectangle {
+                    visible: root.service && taskListModel.count > 0
+                    implicitWidth:  hdrCountLbl.implicitWidth + 10
+                    implicitHeight: 18
+                    radius: 9
+                    color: _theme.bgItem
+
+                    Text {
+                        id: hdrCountLbl
+                        anchors.centerIn: parent
+                        text: String(taskListModel.count)
+                        font.pixelSize: Theme.fontSm
+                        color: _theme.textSecondary
+                    }
+                }
+
+                // Expand icon
+                Rectangle {
+                    width: 26; height: 26
+                    radius: Theme.radiusSm
+                    color: expandBtnArea.containsMouse ? _theme.bgItem : "transparent"
+                    Behavior on color { ColorAnimation { duration: 100 } }
+
+                    Image {
+                        anchors.centerIn: parent
+                        source: Theme.iconsPath + "arrows-pointing-out.svg"
+                        width: 14; height: 14
+                        fillMode: Image.PreserveAspectFit
+                        opacity: expandBtnArea.containsMouse ? 1.0 : 0.6
+                    }
+
                     MouseArea {
+                        id: expandBtnArea
                         anchors.fill: parent
+                        hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.expand()
                     }

@@ -11,7 +11,8 @@ Item {
     readonly property var _theme: (service && service.themeData) ? service.themeData : {
         bg: Theme.bg, bgPanel: Theme.bgPanel, bgItem: Theme.bgItem, bgHover: Theme.bgHover,
         textPrimary: Theme.textPrimary, textSecondary: Theme.textSecondary, textMuted: Theme.textMuted,
-        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border
+        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border,
+        accentAlt: Theme.accentAlt, danger: Theme.danger, warning: Theme.warning
     }
     signal hovered(bool isHovered)
     signal expandClicked()
@@ -119,34 +120,42 @@ Item {
 
     // ── Content ───────────────────────────────────────────────────────────
     RowLayout {
-        anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
-        spacing: 8
+        anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
+        spacing: 0
 
-        // Status dot
-        Rectangle {
-            width: 7; height: 7; radius: 4
-            color: {
-                if (!service || !service.sessionActive) return _theme.textMuted
-                return service.sessionPaused ? Qt.rgba(0.9, 0.6, 0, 1) : _theme.accent
+        // Timer section: status dot + elapsed time
+        RowLayout {
+            spacing: 6
+            Layout.preferredWidth: 76
+
+            // Status dot
+            Rectangle {
+                width: 6; height: 6; radius: 3
+                color: {
+                    if (!service || !service.sessionActive) return _theme.textMuted
+                    return service.sessionPaused ? Qt.rgba(0.9, 0.6, 0, 1) : _theme.accent
+                }
             }
-        }
 
-        // Elapsed time
-        Text {
-            text: service ? service.formatTime(service.elapsedSecs) : "00:00"
-            font.pixelSize: Theme.fontMd
-            font.family:    "monospace"
-            color: _theme.textPrimary
-            Layout.minimumWidth: 42
+            // Elapsed time
+            Text {
+                text: service ? service.formatTime(service.elapsedSecs) : "00:00"
+                font.pixelSize: Theme.fontMd
+                font.family:    "monospace"
+                color: _theme.textPrimary
+                font.weight: Font.Medium
+            }
         }
 
         // Separator
         Rectangle {
-            width: 1; height: 14
+            width: 1; height: 12
             color: _theme.border
+            Layout.leftMargin: 4
+            Layout.rightMargin: 8
         }
 
-        // Task name — scrolling marquee when long
+        // Task name — elided
         Item {
             Layout.fillWidth: true
             implicitHeight:   parent.height
@@ -160,7 +169,8 @@ Item {
                     return service.currentTask.title
                 }
                 font.pixelSize: Theme.fontSm
-                color: _theme.textSecondary
+                color: (service && service.sessionActive)
+                       ? _theme.textSecondary : _theme.textMuted
                 elide: Text.ElideRight
                 width: parent.width
                 anchors.verticalCenter: parent.verticalCenter

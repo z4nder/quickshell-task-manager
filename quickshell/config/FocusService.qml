@@ -17,31 +17,24 @@ Item {
     property var    tasks:               []     // all tasks array
     property var    projects:            []     // all projects array
     property bool   rollIncomplete:      false  // setting: roll over incomplete tasks
-    property string currentTheme:        "dark" // active theme name
+    property string currentTheme:        "default-dark" // active theme name
 
+    // Themes loaded from themes.json at startup
+    property var themes: ({})
+
+    // Reactive: re-evaluates when themes loads or currentTheme changes
     readonly property var themeData: {
-        var t = {
-            "dark":     { bg: "#111111", bgPanel: "#1c1c1e", bgItem: "#2c2c2e", bgHover: "#3a3a3c",
-                          textPrimary: "#ffffff", textSecondary: "#8e8e93", textMuted: "#48484a",
-                          accent: "#e53935", accentDim: "#7b1a1a", border: "#3a3a3c" },
-            "forest":   { bg: "#0d1f0d", bgPanel: "#152415", bgItem: "#1e331e", bgHover: "#274027",
-                          textPrimary: "#e8f5e9", textSecondary: "#81c784", textMuted: "#4a7a4a",
-                          accent: "#4caf50", accentDim: "#2e7d32", border: "#274027" },
-            "neon":     { bg: "#0a0010", bgPanel: "#130020", bgItem: "#1e0035", bgHover: "#2a0050",
-                          textPrimary: "#ffffff", textSecondary: "#ce93d8", textMuted: "#6a3080",
-                          accent: "#e040fb", accentDim: "#7b1fa2", border: "#2a0050" },
-            "light":    { bg: "#f5f5f7", bgPanel: "#ffffff", bgItem: "#e5e5ea", bgHover: "#d1d1d6",
-                          textPrimary: "#1c1c1e", textSecondary: "#636366", textMuted: "#aeaeb2",
-                          accent: "#e53935", accentDim: "#ffcdd2", border: "#d1d1d6" },
-            "midnight": { bg: "#000000", bgPanel: "#0d0d0d", bgItem: "#1a1a1a", bgHover: "#262626",
-                          textPrimary: "#ffffff", textSecondary: "#999999", textMuted: "#444444",
-                          accent: "#4488ff", accentDim: "#1a3a7a", border: "#262626" },
-            "evangelion": { bg: "#0b0c0a", bgPanel: "#16101a", bgItem: "#1e1422", bgHover: "#2a1c30",
-                            textPrimary: "#e2a05e", textSecondary: "#a07840", textMuted: "#604828",
-                            accent: "#d3208f", accentDim: "#7a1050", border: "#2b2a1e" }
-        }
-        return t[currentTheme] || t["dark"]
+        if (themes && themes[currentTheme]) return themes[currentTheme]
+        if (themes && themes["default-dark"]) return themes["default-dark"]
+        // Minimal built-in fallback — only used before themes.json loads
+        return { bg: "#18181B", bgPanel: "#202024", bgItem: "#2A2A2F", bgHover: "#35353B",
+                 textPrimary: "#F4F4F5", textSecondary: "#A1A1AA", textMuted: "#71717A",
+                 accent: "#EF4444", accentAlt: "#22C55E", accentDim: "#7F1D1D",
+                 danger: "#EF4444", warning: "#F59E0B", border: "#3F3F46" }
     }
+
+    // Ordered list of theme keys (for the picker)
+    readonly property var themeKeys: themes ? Object.keys(themes) : []
 
     // Progress 0.0–1.0 for the border trail
     readonly property real progress: {
@@ -339,6 +332,30 @@ Item {
         }
     }
 
+    // ── Load themes.json ──────────────────────────────────────────────────
+    property string _themesBuf: ""
+    Io.Process {
+        id: themesJsonProc
+        // Qt.resolvedUrl gives us the absolute path of themes.json next to this QML file
+        command: ["cat", Qt.resolvedUrl("themes.json").toString().replace("file://", "")]
+        running: false
+        stdout: Io.SplitParser {
+            splitMarker: "\n"
+            onRead: function(line) { root._themesBuf += line }
+        }
+        onExited: function(code) {
+            if (code === 0 && root._themesBuf !== "") {
+                try {
+                    root.themes = JSON.parse(root._themesBuf)
+                    console.log("[FocusService] themes.json loaded:", Object.keys(root.themes).join(", "))
+                } catch(e) {
+                    console.warn("[FocusService] themes.json parse error:", e)
+                }
+            }
+            root._themesBuf = ""
+        }
+    }
+
     // ── Helpers (used by QML components) ──────────────────────────────────
 
     // Format seconds → MM:SS
@@ -383,7 +400,17 @@ Item {
         return ""
     }
 
+    // Find project name for a given project_id
+    function projectName(projectId) {
+        if (!projectId || !projects) return ""
+        for (var i = 0; i < projects.length; i++) {
+            if (projects[i].id === projectId) return projects[i].name
+        }
+        return ""
+    }
+
     Component.onCompleted: {
+        themesJsonProc.running = true
         settingProc.running = true
         statusProc.running = true
         refreshTasks()

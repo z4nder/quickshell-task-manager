@@ -11,7 +11,8 @@ Rectangle {
     readonly property var _theme: (service && service.themeData) ? service.themeData : {
         bg: Theme.bg, bgPanel: Theme.bgPanel, bgItem: Theme.bgItem, bgHover: Theme.bgHover,
         textPrimary: Theme.textPrimary, textSecondary: Theme.textSecondary, textMuted: Theme.textMuted,
-        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border
+        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border,
+        accentAlt: Theme.accentAlt, danger: Theme.danger, warning: Theme.warning
     }
     property bool isActive:  service && service.currentTask
                              && service.currentTask.id === task.id
@@ -35,7 +36,7 @@ Rectangle {
         }
     }
 
-    implicitHeight: 44
+    implicitHeight: 40
     radius: Theme.radiusSm
     color: (isActive || hArea.containsMouse) ? _theme.bgHover : "transparent"
 
@@ -52,25 +53,19 @@ Rectangle {
         anchors { fill: parent; leftMargin: 10; rightMargin: 8 }
         spacing: 8
 
-        // Project color dot
+        // Circle checkbox — empty circle when pending, filled accentAlt + checkmark when done
         Rectangle {
-            visible: task && task.project_id && service
-            width: 8; height: 8; radius: 4
-            anchors.verticalCenter: parent.verticalCenter
-            color: (task && service) ? service.projectColor(task.project_id) : "transparent"
-        }
-
-        // Circle checkbox — empty circle when pending, filled accent + checkmark when done
-        Rectangle {
-            width: 22; height: 22; radius: 11
-            color: (task && task.completed) || root._pendingDone ? _theme.accent : "transparent"
-            border.color: _theme.textSecondary
+            width: 20; height: 20; radius: 10
+            color: (task && task.completed) || root._pendingDone ? _theme.accentAlt : "transparent"
+            border.color: (task && task.completed) || root._pendingDone
+                          ? _theme.accentAlt
+                          : (isActive ? _theme.accent : _theme.textMuted)
             border.width: 1.5
 
             Image {
                 anchors.centerIn: parent
                 source: Theme.iconsPath + "check.svg"
-                width: 12; height: 12
+                width: 11; height: 11
                 fillMode: Image.PreserveAspectFit
                 visible: (task && task.completed) || root._pendingDone
             }
@@ -99,6 +94,7 @@ Rectangle {
             color: (task && task.completed) || root._pendingDone ? _theme.textMuted : _theme.textPrimary
             elide: Text.ElideRight
             Layout.fillWidth: true
+            font.strikeout: (task && task.completed) || root._pendingDone
 
             MouseArea {
                 anchors.fill: parent
@@ -110,28 +106,64 @@ Rectangle {
             }
         }
 
+        // Project pill badge
+        Rectangle {
+            id: projectPill
+            property string pColor: (task && task.project_id && service)
+                                    ? service.projectColor(task.project_id) : ""
+            property string pName:  (task && task.project_id && service)
+                                    ? service.projectName(task.project_id) : ""
+            visible: pName !== "" && pColor !== ""
+            implicitWidth:  pillLabel.implicitWidth + 12
+            implicitHeight: 18
+            radius: 9
+            color: Qt.rgba(
+                parseInt(pColor.slice(1,3), 16) / 255,
+                parseInt(pColor.slice(3,5), 16) / 255,
+                parseInt(pColor.slice(5,7), 16) / 255,
+                0.18
+            )
+            border.color: Qt.rgba(
+                parseInt(pColor.slice(1,3), 16) / 255,
+                parseInt(pColor.slice(3,5), 16) / 255,
+                parseInt(pColor.slice(5,7), 16) / 255,
+                0.55
+            )
+            border.width: 1
+
+            Text {
+                id: pillLabel
+                anchors.centerIn: parent
+                text: projectPill.pName
+                font.pixelSize: Theme.fontSm
+                color: projectPill.pColor
+                elide: Text.ElideRight
+            }
+        }
+
         // Estimated mins badge
         Rectangle {
             visible: task && task.estimated_mins
-            color: isActive ? Qt.rgba(0.9, 0.22, 0.21, 0.2) : _theme.bgItem
+            color: _theme.bgItem
             radius: Theme.radiusSm
             implicitWidth: minsLabel.implicitWidth + 10
-            implicitHeight: 20
+            implicitHeight: 18
 
             Text {
                 id: minsLabel
                 anchors.centerIn: parent
                 text: task ? String(task.estimated_mins) + "m" : ""
                 font.pixelSize: Theme.fontSm
-                color: isActive ? _theme.textPrimary : _theme.textSecondary
+                color: _theme.textSecondary
             }
         }
 
         // Play / Pause button
         Rectangle {
-            width: 28; height: 28; radius: 14
-            color: isActive ? Qt.rgba(0.9, 0.22, 0.21, 0.25) : _theme.accent
+            width: 26; height: 26; radius: 13
+            color: isActive ? _theme.accentDim : _theme.accent
             visible: !(task && task.completed) && !root._pendingDone
+            opacity: hArea.containsMouse || isActive ? 1.0 : 0.75
 
             Image {
                 anchors.centerIn: parent
@@ -140,7 +172,7 @@ Rectangle {
                     return service.sessionPaused ? Theme.iconsPath + "play-accent.svg"
                                                  : Theme.iconsPath + "pause.svg"
                 }
-                width: 13; height: 13
+                width: 12; height: 12
                 fillMode: Image.PreserveAspectFit
             }
 
@@ -148,23 +180,53 @@ Rectangle {
         }
 
         // Edit button
-        Image {
-            source: Theme.iconsPath + "pencil-square.svg"
-            width: 15; height: 15
-            fillMode: Image.PreserveAspectFit
-            opacity: hArea.containsMouse ? 1 : 0
+        Rectangle {
+            width: 26; height: 26; radius: Theme.radiusSm
+            color: editIconArea.containsMouse ? _theme.bgHover : "transparent"
+            opacity: hArea.containsMouse ? 1.0 : 0
             Behavior on opacity { NumberAnimation { duration: 120 } }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.editClicked() }
+            Behavior on color   { ColorAnimation  { duration: 100 } }
+            Image {
+                anchors.centerIn: parent
+                source: Theme.iconsPath + "pencil-square.svg"
+                width: 14; height: 14
+                fillMode: Image.PreserveAspectFit
+                opacity: editIconArea.containsMouse ? 1.0 : 0.6
+            }
+            MouseArea {
+                id: editIconArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.editClicked()
+            }
         }
 
         // Delete button
-        Image {
-            source: Theme.iconsPath + "trash.svg"
-            width: 15; height: 15
-            fillMode: Image.PreserveAspectFit
-            opacity: hArea.containsMouse ? 1 : 0
+        Rectangle {
+            width: 26; height: 26; radius: Theme.radiusSm
+            color: deleteIconArea.containsMouse ? Qt.rgba(
+                parseInt(_theme.danger.slice(1,3), 16) / 255,
+                parseInt(_theme.danger.slice(3,5), 16) / 255,
+                parseInt(_theme.danger.slice(5,7), 16) / 255,
+                0.18) : "transparent"
+            opacity: hArea.containsMouse ? 1.0 : 0
             Behavior on opacity { NumberAnimation { duration: 120 } }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.deleteClicked() }
+            Behavior on color   { ColorAnimation  { duration: 100 } }
+            Image {
+                anchors.centerIn: parent
+                source: Theme.iconsPath + "trash.svg"
+                width: 14; height: 14
+                fillMode: Image.PreserveAspectFit
+                opacity: deleteIconArea.containsMouse ? 1.0 : 0.6
+            }
+            MouseArea {
+                id: deleteIconArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.deleteClicked()
+            }
         }
     }
 

@@ -10,7 +10,8 @@ Item {
     readonly property var _theme: (service && service.themeData) ? service.themeData : {
         bg: Theme.bg, bgPanel: Theme.bgPanel, bgItem: Theme.bgItem, bgHover: Theme.bgHover,
         textPrimary: Theme.textPrimary, textSecondary: Theme.textSecondary, textMuted: Theme.textMuted,
-        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border
+        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border,
+        accentAlt: Theme.accentAlt, danger: Theme.danger, warning: Theme.warning
     }
     property date selectedDate: new Date()
 

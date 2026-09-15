@@ -11,7 +11,8 @@ Rectangle {
     readonly property var _theme: (service && service.themeData) ? service.themeData : {
         bg: Theme.bg, bgPanel: Theme.bgPanel, bgItem: Theme.bgItem, bgHover: Theme.bgHover,
         textPrimary: Theme.textPrimary, textSecondary: Theme.textSecondary, textMuted: Theme.textMuted,
-        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border
+        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border,
+        accentAlt: Theme.accentAlt, danger: Theme.danger, warning: Theme.warning
     }
     property date selectedDate: new Date()
     signal closeRequested()
@@ -82,7 +83,7 @@ Rectangle {
                     }
                     Rectangle {
                         implicitWidth: delConfirmLbl.implicitWidth + 24; implicitHeight: 32
-                        radius: Theme.radiusSm; color: _theme.accent
+                        radius: Theme.radiusSm; color: _theme.danger
                         Text { id: delConfirmLbl; anchors.centerIn: parent; text: "Delete"; font.pixelSize: Theme.fontMd; color: "white"; font.weight: Font.Medium }
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -100,6 +101,7 @@ Rectangle {
 
     // ── Edit task modal overlay ───────────────────────────────────────────
     Rectangle {
+        id: editOverlay
         anchors.fill: parent
         radius: Theme.radiusLg
         color: Qt.rgba(0, 0, 0, 0.55)
@@ -108,9 +110,11 @@ Rectangle {
 
         MouseArea { anchors.fill: parent; onClicked: root.editTask = null }
 
+        property var _editProjectId: null  // null = no project
+
         Rectangle {
             anchors.centerIn: parent
-            width: 400
+            width: 440
             implicitHeight: editCol.implicitHeight + 32
             color: _theme.bgPanel
             radius: Theme.radiusMd
@@ -194,6 +198,78 @@ Rectangle {
                     }
                 }
 
+                // Project selector
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    Text { text: "Projeto"; font.pixelSize: Theme.fontSm; color: _theme.textSecondary }
+
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 5
+
+                        // "Nenhum" pill
+                        Rectangle {
+                            property bool sel: editOverlay._editProjectId === null
+                            implicitWidth: noneLabel.implicitWidth + 16
+                            implicitHeight: 26
+                            radius: Theme.radiusSm
+                            color: sel ? _theme.bgHover : _theme.bgItem
+                            border.color: sel ? _theme.accent : _theme.border
+                            border.width: 1
+                            Text {
+                                id: noneLabel
+                                anchors.centerIn: parent
+                                text: "Nenhum"
+                                font.pixelSize: Theme.fontSm
+                                color: sel ? _theme.textPrimary : _theme.textSecondary
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: editOverlay._editProjectId = null
+                            }
+                        }
+
+                        // One pill per project
+                        Repeater {
+                            model: service ? service.projects : []
+                            delegate: Rectangle {
+                                property bool sel: editOverlay._editProjectId === modelData.id
+                                property string pColor: modelData.color || _theme.accent
+                                implicitWidth: projPillLabel.implicitWidth + 24
+                                implicitHeight: 26
+                                radius: Theme.radiusSm
+                                color: sel ? _theme.bgHover : _theme.bgItem
+                                border.color: sel ? pColor : _theme.border
+                                border.width: 1
+                                Row {
+                                    anchors.centerIn: parent
+                                    spacing: 5
+                                    Rectangle {
+                                        width: 7; height: 7; radius: 4
+                                        color: pColor
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                    Text {
+                                        id: projPillLabel
+                                        text: modelData.name
+                                        font.pixelSize: Theme.fontSm
+                                        color: sel ? _theme.textPrimary : _theme.textSecondary
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: editOverlay._editProjectId = modelData.id
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Notes / Description
                 Text { text: "Description"; font.pixelSize: Theme.fontSm; color: _theme.textSecondary }
                 ScrollView {
@@ -252,16 +328,17 @@ Rectangle {
                             onClicked: {
                                 if (!root.service || !root.editTask) return
                                 var mins = parseInt(editMinsField.text)
-                                // date: strip mask placeholders — if no digit present, treat as empty
                                 var rawDate = editDateField.text
                                 var dateVal = /\d{4}-\d{2}-\d{2}/.test(rawDate) ? rawDate : ""
+                                var taskId = root.editTask.id
                                 root.service.editTask(
-                                    root.editTask.id,
+                                    taskId,
                                     editTitleField.text.trim(),
                                     dateVal,
                                     isNaN(mins) ? -1 : mins,
                                     editNotesField.text
                                 )
+                                root.service.editTaskProject(taskId, editOverlay._editProjectId)
                                 root.editTask = null
                             }
                         }
@@ -279,6 +356,7 @@ Rectangle {
                 editDateField.text  = root.editTask.scheduled_date || ""
                 editMinsField.text  = root.editTask.estimated_mins ? String(root.editTask.estimated_mins) : ""
                 editNotesField.text = root.editTask.notes || ""
+                editOverlay._editProjectId = root.editTask.project_id || null
                 editTitleField.forceActiveFocus()
             }
         }
@@ -308,7 +386,7 @@ Rectangle {
 
         Rectangle {
             anchors.centerIn: parent
-            width: 360
+            width: 480
             height: settingsCol.implicitHeight + 40
             color: _theme.bgPanel
             radius: Theme.radiusMd
@@ -373,53 +451,69 @@ Rectangle {
 
                 Rectangle { Layout.fillWidth: true; height: 1; color: _theme.border }
 
-                // Theme picker
+                // Theme picker — 3-column grid with scroll
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 8
 
                     Text { text: "Theme"; font.pixelSize: Theme.fontMd; color: _theme.textPrimary }
 
-                    RowLayout {
+                    ScrollView {
                         Layout.fillWidth: true
-                        spacing: 6
+                        implicitHeight: Math.min(themeGrid.implicitHeight, 114)  // 3 rows × 34px + 2×6px gap
+                        clip: true
+                        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                        ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
-                        Repeater {
-                            model: [
-                                { key: "dark",       label: "Dark",       dot: "#e53935" },
-                                { key: "midnight",   label: "Midnight",   dot: "#4488ff" },
-                                { key: "forest",     label: "Forest",     dot: "#4caf50" },
-                                { key: "neon",       label: "Neon",       dot: "#e040fb" },
-                                { key: "light",      label: "Light",      dot: "#636366" },
-                                { key: "evangelion", label: "Evangelion", dot: "#d3208f" }
-                            ]
+                        Grid {
+                            id: themeGrid
+                            width: parent.width
+                            columns: 3
+                            columnSpacing: 6
+                            rowSpacing: 6
 
-                            delegate: Rectangle {
-                                property bool isActive: service && service.currentTheme === modelData.key
-                                implicitWidth:  themeLbl.implicitWidth + 16
-                                implicitHeight: 30
-                                radius: Theme.radiusSm
-                                color: isActive ? _theme.bgHover : "transparent"
-                                border.color: isActive ? _theme.accent : _theme.border
-                                border.width: 1
-
-                                RowLayout {
-                                    anchors.centerIn: parent
-                                    spacing: 5
-                                    Rectangle { width: 8; height: 8; radius: 4; color: modelData.dot }
-                                    Text {
-                                        id: themeLbl
-                                        text: modelData.label
-                                        font.pixelSize: Theme.fontSm
-                                        color: isActive ? _theme.textPrimary : _theme.textSecondary
-                                    }
+                            Repeater {
+                                model: {
+                                    if (!service || !service.themes) return []
+                                    return Object.keys(service.themes).map(function(k) {
+                                        var t = service.themes[k]
+                                        return { key: k, label: t.name || k, dot: t.accent || "#888" }
+                                    })
                                 }
 
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        if (service) service.currentTheme = modelData.key
+                                delegate: Rectangle {
+                                    property bool isActive: service && service.currentTheme === modelData.key
+                                    width: (themeGrid.width - themeGrid.columnSpacing * 2) / 3
+                                    height: 34
+                                    radius: Theme.radiusSm
+                                    color: isActive ? _theme.bgHover : _theme.bgItem
+                                    border.color: isActive ? _theme.accent : _theme.border
+                                    border.width: 1
+                                    Behavior on color { ColorAnimation { duration: 100 } }
+
+                                    Row {
+                                        anchors.centerIn: parent
+                                        spacing: 6
+                                        Rectangle {
+                                            width: 8; height: 8; radius: 4
+                                            color: modelData.dot
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Text {
+                                            text: modelData.label
+                                            font.pixelSize: Theme.fontSm
+                                            color: isActive ? _theme.textPrimary : _theme.textSecondary
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            elide: Text.ElideRight
+                                            width: Math.min(implicitWidth,
+                                                   (themeGrid.width - themeGrid.columnSpacing * 2) / 3 - 30)
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: { if (service) service.currentTheme = modelData.key }
                                     }
                                 }
                             }
@@ -566,78 +660,21 @@ Rectangle {
                 spacing: 0
                 visible: root._view === 0
 
-                // Left panel: Calendar + Today button
-                Rectangle {
-                    Layout.preferredWidth: 220
-                    Layout.fillHeight: true
-                    color: Qt.rgba(0, 0, 0, 0.15)
-                    radius: Theme.radiusLg
-
-                    ColumnLayout {
-                        anchors { fill: parent; margins: 14 }
-                        spacing: 10
-
-                        // Header
-                        Text {
-                            text: "FocusTrack"
-                            font.pixelSize: Theme.fontXl
-                            font.weight: Font.Bold
-                            color: _theme.textPrimary
-                            font.letterSpacing: -0.5
-                        }
-
-                        // Calendar
-                        FocusMonthCalendar {
-                            id: cal
-                            service: root.service
-                            selectedDate: root.selectedDate
-                            Layout.fillWidth: true
-                            onDateSelected: function(d) { root.selectedDate = d }
-                        }
-
-                        Item { Layout.fillHeight: true }
-
-                        // Today button
-                        Rectangle {
-                            Layout.fillWidth: true
-                            implicitHeight: 32
-                            color: _theme.bgItem
-                            radius: Theme.radiusSm
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "Hoje"
-                                font.pixelSize: Theme.fontMd
-                                color: _theme.textPrimary
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    root.selectedDate = new Date()
-                                    cal.viewYear  = root.selectedDate.getFullYear()
-                                    cal.viewMonth = root.selectedDate.getMonth()
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Right panel: tabs + task list + add input
+                // Left panel: tabs + task list + add input
                 ColumnLayout {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     spacing: 0
 
-                    // Tab bar
+                    // Tab bar / header row
                     RowLayout {
                         Layout.fillWidth: true
                         Layout.topMargin: 14
                         Layout.leftMargin: 16
-                        Layout.rightMargin: 16
-                        spacing: 0
+                        Layout.rightMargin: 12
+                        spacing: 6
 
+                        // App title / date heading
                         Text {
                             text: {
                                 var today = new Date()
@@ -647,7 +684,7 @@ Rectangle {
                                 return Qt.formatDate(root.selectedDate, "d MMM")
                             }
                             font.pixelSize: Theme.fontXl
-                            font.weight: Font.Medium
+                            font.weight: Font.SemiBold
                             color: _theme.textPrimary
                             Layout.fillWidth: true
                         }
@@ -657,7 +694,7 @@ Rectangle {
                             visible: service && tabRow.currentTab === 0
                             implicitWidth: doneCountText.implicitWidth + 14
                             implicitHeight: 20
-                            radius: Theme.radiusSm
+                            radius: 10
                             color: _theme.bgItem
 
                             Text {
@@ -683,7 +720,7 @@ Rectangle {
                                 model: ["Hoje", "Não agendadas"]
                                 delegate: Rectangle {
                                     implicitWidth:  tabLabel.implicitWidth + 16
-                                    implicitHeight: 28
+                                    implicitHeight: 26
                                     radius: Theme.radiusSm
                                     color: tabRow.currentTab === index ? _theme.bgItem : "transparent"
 
@@ -698,6 +735,7 @@ Rectangle {
 
                                     MouseArea {
                                         anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
                                         onClicked: tabRow.currentTab = index
                                     }
                                 }
@@ -708,8 +746,10 @@ Rectangle {
                     // Separator
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.leftMargin: 16; Layout.rightMargin: 16
+                        Layout.leftMargin: 16; Layout.rightMargin: 12
+                        Layout.topMargin: 6
                         height: 1; color: _theme.border
+                        opacity: 0.6
                     }
 
                     // Task list
@@ -719,7 +759,7 @@ Rectangle {
                         Layout.fillHeight: true
                         Layout.leftMargin: 8
                         Layout.rightMargin: 8
-                        Layout.topMargin: 6
+                        Layout.topMargin: 4
                         clip: true
                         spacing: 2
 
@@ -763,15 +803,16 @@ Rectangle {
                     // Separator
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.leftMargin: 16; Layout.rightMargin: 16
+                        Layout.leftMargin: 16; Layout.rightMargin: 12
                         height: 1; color: _theme.border
+                        opacity: 0.6
                     }
 
                     // Add task input row
                     RowLayout {
                         Layout.fillWidth: true
                         Layout.leftMargin: 16
-                        Layout.rightMargin: 16
+                        Layout.rightMargin: 12
                         Layout.topMargin: 6
                         Layout.bottomMargin: 12
                         spacing: 8
@@ -829,6 +870,67 @@ Rectangle {
                             Keys.onReturnPressed: _submit()
                             Keys.onTabPressed:    { estMinsField.forceActiveFocus(); event.accepted = true }
                             Keys.onEscapePressed: { text = ""; focus = false }
+                        }
+                    }
+                }
+
+                // Right panel: mini calendar
+                Rectangle {
+                    Layout.preferredWidth: 210
+                    Layout.fillHeight: true
+                    color: Qt.rgba(0, 0, 0, 0.15)
+                    radius: Theme.radiusLg
+
+                    ColumnLayout {
+                        anchors { fill: parent; margins: 12 }
+                        spacing: 10
+
+                        // App title
+                        Text {
+                            text: "FocusTrack"
+                            font.pixelSize: Theme.fontLg
+                            font.weight: Font.Bold
+                            color: _theme.textPrimary
+                            font.letterSpacing: -0.3
+                        }
+
+                        // Calendar
+                        FocusMonthCalendar {
+                            id: cal
+                            service: root.service
+                            selectedDate: root.selectedDate
+                            Layout.fillWidth: true
+                            onDateSelected: function(d) { root.selectedDate = d }
+                        }
+
+                        Item { Layout.fillHeight: true }
+
+                        // Today button
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 30
+                            color: todayBtnArea.containsMouse ? _theme.bgHover : _theme.bgItem
+                            radius: Theme.radiusSm
+                            Behavior on color { ColorAnimation { duration: 100 } }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Ir para hoje"
+                                font.pixelSize: Theme.fontSm
+                                color: _theme.textPrimary
+                            }
+
+                            MouseArea {
+                                id: todayBtnArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.selectedDate = new Date()
+                                    cal.viewYear  = root.selectedDate.getFullYear()
+                                    cal.viewMonth = root.selectedDate.getMonth()
+                                }
+                            }
                         }
                     }
                 }

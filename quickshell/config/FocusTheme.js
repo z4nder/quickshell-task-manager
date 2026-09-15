@@ -2,44 +2,68 @@
 
 // ── Theme presets ─────────────────────────────────────────────────────────────
 var themes = {
-    "dark": {
-        bg: "#111111", bgPanel: "#1c1c1e", bgItem: "#2c2c2e", bgHover: "#3a3a3c",
-        textPrimary: "#ffffff", textSecondary: "#8e8e93", textMuted: "#48484a",
-        accent: "#e53935", accentDim: "#7b1a1a", border: "#3a3a3c"
+    "default-dark": {
+        bg: "#18181B", bgPanel: "#202024", bgItem: "#2A2A2F", bgHover: "#35353B",
+        textPrimary: "#F4F4F5", textSecondary: "#A1A1AA", textMuted: "#71717A",
+        accent: "#EF4444", accentAlt: "#22C55E", accentDim: "#7F1D1D",
+        danger: "#EF4444", warning: "#F59E0B", border: "#3F3F46"
     },
-    "forest": {
-        bg: "#0d1f0d", bgPanel: "#152415", bgItem: "#1e331e", bgHover: "#274027",
-        textPrimary: "#e8f5e9", textSecondary: "#81c784", textMuted: "#4a7a4a",
-        accent: "#4caf50", accentDim: "#2e7d32", border: "#274027"
+    "evangelion-unit-01": {
+        bg: "#09080B", bgPanel: "#121016", bgItem: "#1E1924", bgHover: "#2B2334",
+        textPrimary: "#F5F2F7", textSecondary: "#B8A9C7", textMuted: "#796D85",
+        accent: "#765898", accentAlt: "#52D053", accentDim: "#443357",
+        danger: "#D3290F", warning: "#E6770B", border: "#3A3043"
     },
-    "neon": {
-        bg: "#0a0010", bgPanel: "#130020", bgItem: "#1e0035", bgHover: "#2a0050",
-        textPrimary: "#ffffff", textSecondary: "#ce93d8", textMuted: "#6a3080",
-        accent: "#e040fb", accentDim: "#7b1fa2", border: "#2a0050"
+    "evangelion-unit-02": {
+        bg: "#0D0908", bgPanel: "#19100D", bgItem: "#281713", bgHover: "#3A2018",
+        textPrimary: "#F8F2EF", textSecondary: "#C6AAA0", textMuted: "#806A62",
+        accent: "#D3290F", accentAlt: "#E6770B", accentDim: "#6F1A0E",
+        danger: "#FF453A", warning: "#E6770B", border: "#49241B"
+    },
+    "nord": {
+        bg: "#2E3440", bgPanel: "#3B4252", bgItem: "#434C5E", bgHover: "#4C566A",
+        textPrimary: "#ECEFF4", textSecondary: "#D8DEE9", textMuted: "#8F9AAF",
+        accent: "#88C0D0", accentAlt: "#A3BE8C", accentDim: "#4C7180",
+        danger: "#BF616A", warning: "#EBCB8B", border: "#4C566A"
+    },
+    "dracula": {
+        bg: "#282A36", bgPanel: "#21222C", bgItem: "#343746", bgHover: "#44475A",
+        textPrimary: "#F8F8F2", textSecondary: "#CFCFDB", textMuted: "#8B8DA3",
+        accent: "#BD93F9", accentAlt: "#50FA7B", accentDim: "#644E85",
+        danger: "#FF5555", warning: "#F1FA8C", border: "#44475A"
+    },
+    "tokyo-night": {
+        bg: "#1A1B26", bgPanel: "#16161E", bgItem: "#24283B", bgHover: "#292E42",
+        textPrimary: "#C0CAF5", textSecondary: "#A9B1D6", textMuted: "#565F89",
+        accent: "#7AA2F7", accentAlt: "#9ECE6A", accentDim: "#3D59A1",
+        danger: "#F7768E", warning: "#E0AF68", border: "#3B4261"
+    },
+    "catppuccin-mocha": {
+        bg: "#1E1E2E", bgPanel: "#181825", bgItem: "#313244", bgHover: "#45475A",
+        textPrimary: "#CDD6F4", textSecondary: "#BAC2DE", textMuted: "#7F849C",
+        accent: "#CBA6F7", accentAlt: "#A6E3A1", accentDim: "#5B4774",
+        danger: "#F38BA8", warning: "#F9E2AF", border: "#45475A"
+    },
+    "gruvbox-dark": {
+        bg: "#1D2021", bgPanel: "#282828", bgItem: "#32302F", bgHover: "#3C3836",
+        textPrimary: "#EBDBB2", textSecondary: "#D5C4A1", textMuted: "#928374",
+        accent: "#D79921", accentAlt: "#B8BB26", accentDim: "#665C1E",
+        danger: "#FB4934", warning: "#FABD2F", border: "#504945"
     },
     "light": {
-        bg: "#f5f5f7", bgPanel: "#ffffff", bgItem: "#e5e5ea", bgHover: "#d1d1d6",
-        textPrimary: "#1c1c1e", textSecondary: "#636366", textMuted: "#aeaeb2",
-        accent: "#e53935", accentDim: "#ffcdd2", border: "#d1d1d6"
-    },
-    "midnight": {
-        bg: "#000000", bgPanel: "#0d0d0d", bgItem: "#1a1a1a", bgHover: "#262626",
-        textPrimary: "#ffffff", textSecondary: "#999999", textMuted: "#444444",
-        accent: "#4488ff", accentDim: "#1a3a7a", border: "#262626"
-    },
-    "evangelion": {
-        bg: "#0b0c0a", bgPanel: "#16101a", bgItem: "#1e1422", bgHover: "#2a1c30",
-        textPrimary: "#e2a05e", textSecondary: "#a07840", textMuted: "#604828",
-        accent: "#d3208f", accentDim: "#7a1050", border: "#2b2a1e"
+        bg: "#F5F5F7", bgPanel: "#FFFFFF", bgItem: "#EBEBEF", bgHover: "#DEDEE5",
+        textPrimary: "#18181B", textSecondary: "#52525B", textMuted: "#A1A1AA",
+        accent: "#6366F1", accentAlt: "#16A34A", accentDim: "#C7D2FE",
+        danger: "#DC2626", warning: "#D97706", border: "#D4D4D8"
     }
 }
 
 function getTheme(name) {
-    return themes[name] || themes["dark"]
+    return themes[name] || themes["default-dark"]
 }
 
 // Active theme — pull from themes object
-var _t = themes["dark"]
+var _t = themes["default-dark"]
 
 // Backgrounds
 var bg       = _t.bg
@@ -55,6 +79,9 @@ var textMuted     = _t.textMuted
 // Accent
 var accent    = _t.accent
 var accentDim = _t.accentDim
+var accentAlt = _t.accentAlt
+var danger    = _t.danger
+var warning   = _t.warning
 
 // Borders
 var border = _t.border

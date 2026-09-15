@@ -70,9 +70,9 @@ Item {
                 color: {
                     if (count === 0) return _theme.bgItem
                     var alpha = Math.min(1.0, 0.3 + count * 0.2)
-                    return Qt.rgba(0.9, 0.22, 0.21, alpha)
+                    return accentAlpha(alpha)
                 }
-                border.color: isToday ? Qt.rgba(0.9, 0.22, 0.21, 0.8) : "transparent"
+                border.color: isToday ? accentAlpha(0.8) : "transparent"
                 border.width: 1
 
                 MouseArea {
@@ -94,6 +94,13 @@ Item {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
+    function accentAlpha(a) {
+        var c = _theme.accent || "#EF4444"
+        return Qt.rgba(parseInt(c.slice(1,3),16)/255,
+                       parseInt(c.slice(3,5),16)/255,
+                       parseInt(c.slice(5,7),16)/255, a)
+    }
+
     function daysInMonth() {
         var now = new Date()
         var total = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()

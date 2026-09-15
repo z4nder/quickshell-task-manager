@@ -11,7 +11,8 @@ Rectangle {
     readonly property var _theme: (service && service.themeData) ? service.themeData : {
         bg: Theme.bg, bgPanel: Theme.bgPanel, bgItem: Theme.bgItem, bgHover: Theme.bgHover,
         textPrimary: Theme.textPrimary, textSecondary: Theme.textSecondary, textMuted: Theme.textMuted,
-        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border
+        accent: Theme.accent, accentDim: Theme.accentDim, border: Theme.border,
+        accentAlt: Theme.accentAlt, danger: Theme.danger, warning: Theme.warning
     }
     property bool   isActive: service && service.currentTask
                               && service.currentTask.id === task.id
@@ -48,27 +49,21 @@ Rectangle {
 
     RowLayout {
         anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-        spacing: 8
+        spacing: 6
 
-        // Project color dot
+        // Check toggle — empty circle when pending, filled accentAlt + checkmark when done
         Rectangle {
-            visible: task && task.project_id && service
-            width: 8; height: 8; radius: 4
-            anchors.verticalCenter: parent.verticalCenter
-            color: (task && service) ? service.projectColor(task.project_id) : "transparent"
-        }
-
-        // Check toggle — empty circle when pending, filled accent + checkmark when done
-        Rectangle {
-            width: 20; height: 20; radius: 10
-            color: (task && task.completed) || root._pendingDone ? _theme.accent : "transparent"
-            border.color: _theme.textSecondary
+            width: 18; height: 18; radius: 9
+            color: (task && task.completed) || root._pendingDone ? _theme.accentAlt : "transparent"
+            border.color: (task && task.completed) || root._pendingDone
+                          ? _theme.accentAlt
+                          : (isActive ? _theme.accent : _theme.textMuted)
             border.width: 1.5
 
             Image {
                 anchors.centerIn: parent
                 source: Theme.iconsPath + "check.svg"
-                width: 11; height: 11
+                width: 10; height: 10
                 fillMode: Image.PreserveAspectFit
                 visible: (task && task.completed) || root._pendingDone
             }
@@ -96,8 +91,10 @@ Rectangle {
         Text {
             text: task ? task.title : ""
             font.pixelSize: Theme.fontMd
-            color: _theme.textPrimary
+            color: (task && task.completed) || root._pendingDone
+                   ? _theme.textMuted : _theme.textPrimary
             elide: Text.ElideRight
+            font.strikeout: (task && task.completed) || root._pendingDone
             Layout.fillWidth: true
 
             MouseArea {
@@ -110,23 +107,56 @@ Rectangle {
             }
         }
 
-        // Estimated mins badge
-        Row {
-            spacing: 3
-            visible: task && task.estimated_mins
+        // Project pill badge
+        Rectangle {
+            id: hoverPill
+            property string pColor: (task && task.project_id && service)
+                                    ? service.projectColor(task.project_id) : ""
+            property string pName:  (task && task.project_id && service)
+                                    ? service.projectName(task.project_id) : ""
+            visible: pName !== "" && pColor !== ""
+            implicitWidth:  hoverPillLabel.implicitWidth + 10
+            implicitHeight: 16
+            radius: 8
+            color: Qt.rgba(
+                parseInt(pColor.slice(1,3), 16) / 255,
+                parseInt(pColor.slice(3,5), 16) / 255,
+                parseInt(pColor.slice(5,7), 16) / 255,
+                0.18
+            )
+            border.color: Qt.rgba(
+                parseInt(pColor.slice(1,3), 16) / 255,
+                parseInt(pColor.slice(3,5), 16) / 255,
+                parseInt(pColor.slice(5,7), 16) / 255,
+                0.55
+            )
+            border.width: 1
+
             Text {
-                text: task ? String(task.estimated_mins) + "m" : ""
-                font.pixelSize: Theme.fontSm
-                color: _theme.textSecondary
-                anchors.verticalCenter: parent.verticalCenter
+                id: hoverPillLabel
+                anchors.centerIn: parent
+                text: hoverPill.pName
+                font.pixelSize: Theme.fontSm - 1
+                color: hoverPill.pColor
+                elide: Text.ElideRight
             }
+        }
+
+        // Estimated mins badge
+        Text {
+            visible: task && task.estimated_mins
+            text: task ? String(task.estimated_mins) + "m" : ""
+            font.pixelSize: Theme.fontSm
+            color: _theme.textMuted
         }
 
         // Play / pause button
         Rectangle {
-            width: 26; height: 26
-            radius: 13
-            color: isActive ? Qt.rgba(0.9, 0.22, 0.21, 0.2) : _theme.accent
+            width: 24; height: 24
+            radius: 12
+            color: isActive ? _theme.accentDim : Qt.rgba(1, 1, 1, 0.08)
+            border.color: isActive ? _theme.accent : Qt.rgba(1, 1, 1, 0.1)
+            border.width: 1
             visible: !(task && task.completed) && !root._pendingDone
 
             Image {
@@ -136,8 +166,9 @@ Rectangle {
                     return service.sessionPaused ? Theme.iconsPath + "play-accent.svg"
                                                  : Theme.iconsPath + "pause.svg"
                 }
-                width: 12; height: 12
+                width: 11; height: 11
                 fillMode: Image.PreserveAspectFit
+                opacity: 0.9
             }
 
             MouseArea {
