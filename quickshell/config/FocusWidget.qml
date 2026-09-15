@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Io
 
 // Drop-in widget for Bar.qml's right Row.
 // Usage: FocusWidget { barWindow: root }
@@ -35,12 +34,6 @@ Item {
         } else {
             hideDelay.restart()
         }
-    }
-
-    // ── IPC — quickshell ipc call focus toggle ────────────────────────────
-    IpcHandler {
-        target: "focus"
-        function toggle() { if (root.visible) appWin.visible = !appWin.visible }
     }
 
     // ── Badge (inline in bar) ─────────────────────────────────────────────
