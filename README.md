@@ -60,11 +60,27 @@ Make sure `~/.local/bin` is in your `$PATH`.
 Then add the widget to your Quickshell bar config:
 
 ```qml
-// In your bar's QML file
-FocusWidget {
-    barWindow: root
+// In your bar's QML file — import Quickshell.Io for IpcHandler
+import Quickshell.Io
+
+// Inside your bar's Row/layout:
+FocusWidget { id: focusWidget; barWindow: root }
+
+// Optional: keybind toggle — hides/shows the badge in the bar
+IpcHandler {
+    target: "focus"
+    function toggle() { focusWidget.visible = !focusWidget.visible }
 }
 ```
+
+Then bind a key to toggle it (Hyprland example):
+
+```
+bind = $mainMod, T, exec, quickshell ipc --any-display call focus toggle
+```
+
+> **Note:** `--any-display` is required when Quickshell is launched by a compositor autostart,
+> as the IPC display registration may differ from the calling shell's display.
 
 ### Option B — NixOS / home-manager (flake)
 
