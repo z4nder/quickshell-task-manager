@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# install.sh — installs focus-notch on any Linux distro
+# install.sh — installs focus-notch on any Linux distro with Quickshell
 # Requirements: cargo (Rust), quickshell (must be installed separately)
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 QS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell"
 BIN_DIR="${HOME}/.local/bin"
-ICONS_SRC="$REPO_DIR/assets"
-ICONS_DST="$QS_DIR/focus-icons"
+SRC_CONFIG="$REPO_DIR/quickshell/config"
+DST_ICONS="$QS_DIR/focus-icons"
 
 echo "==> Building focusctl..."
 cargo build --release -p focusctl --manifest-path "$REPO_DIR/Cargo.toml"
@@ -16,42 +16,38 @@ echo "==> Installing binary to $BIN_DIR..."
 mkdir -p "$BIN_DIR"
 cp "$REPO_DIR/target/release/focusctl" "$BIN_DIR/focusctl"
 
-echo "==> Deploying Quickshell config to $QS_DIR..."
+echo "==> Deploying Quickshell QML components to $QS_DIR..."
 mkdir -p "$QS_DIR"
-for f in "$REPO_DIR"/quickshell/config/Focus*.qml \
-         "$REPO_DIR"/quickshell/config/FocusWidget.qml; do
+
+# All Focus*.qml components
+for f in "$SRC_CONFIG"/Focus*.qml; do
     [ -f "$f" ] && cp "$f" "$QS_DIR/"
 done
 
-echo "==> Processing and deploying icons to $ICONS_DST..."
-mkdir -p "$ICONS_DST"
+# JS theme file and themes JSON
+cp "$SRC_CONFIG/FocusTheme.js" "$QS_DIR/FocusTheme.js"
+cp "$SRC_CONFIG/themes.json"   "$QS_DIR/themes.json"
 
-process_icon() {
-    local name="$1" color="$2" src_file="$3"
-    sed "s/currentColor/$color/g" "$REPO_DIR/assets/${src_file}.svg" \
-        > "$ICONS_DST/${name}.svg"
-}
+echo "==> Deploying icons to $DST_ICONS..."
+mkdir -p "$DST_ICONS"
 
-process_icon check                "#e53935" check
-process_icon play                 "#ffffff"  play
-process_icon play-accent          "#e53935"  play
-process_icon pause                "#e53935"  pause
-process_icon trash                "#48484a"  trash
-process_icon arrows-up-down       "#8e8e93"  arrows-up-down
-process_icon arrows-pointing-out  "#8e8e93"  arrows-pointing-out
-process_icon cog-6-tooth          "#8e8e93"  cog-6-tooth
-process_icon chevron-left         "#8e8e93"  chevron-left
-process_icon chevron-right        "#8e8e93"  chevron-right
-process_icon pencil-square        "#8e8e93"  pencil-square
-
-echo "==> Deploying FocusTheme.js..."
-cp "$REPO_DIR/quickshell/config/FocusTheme.js" "$QS_DIR/FocusTheme.js"
+# Icons are already processed with correct fills — copy directly
+for f in "$SRC_CONFIG/focus-icons/"*.svg; do
+    [ -f "$f" ] && cp "$f" "$DST_ICONS/"
+done
 
 echo ""
-echo "Done! focusctl installed to $BIN_DIR/focusctl"
+echo "Done!"
 echo ""
-echo "Make sure $BIN_DIR is in your PATH, then add to your Quickshell bar:"
-echo "  FocusWidget { barWindow: root }"
+echo "  Binary : $BIN_DIR/focusctl"
+echo "  Config : $QS_DIR/"
+echo "  Icons  : $DST_ICONS/"
 echo ""
-echo "If using NixOS/home-manager, use the flake module instead:"
+echo "Make sure $BIN_DIR is in your PATH."
+echo ""
+echo "To use with an existing Quickshell bar, import and add FocusWidget."
+echo "Or use the bundled shell as a starting point:"
+echo "  quickshell -p $REPO_DIR/quickshell/shell.qml"
+echo ""
+echo "For NixOS/home-manager, use the flake module instead:"
 echo "  programs.focus-notch.enable = true;"

@@ -589,7 +589,8 @@ Rectangle {
                 Repeater {
                     model: [
                         { label: "Tarefas",  idx: 0 },
-                        { label: "Projetos", idx: 1 }
+                        { label: "Projetos", idx: 1 },
+                        { label: "Stats",    idx: 2 }
                     ]
                     delegate: Rectangle {
                         Layout.fillWidth: true
@@ -1000,6 +1001,13 @@ Rectangle {
             FocusProjectsView {
                 anchors { fill: parent; margins: 14 }
                 visible: root._view === 1
+                service: root.service
+            }
+
+            // ── Stats view ────────────────────────────────────────────
+            FocusStatsView {
+                anchors { fill: parent; margins: 14 }
+                visible: root._view === 2
                 service: root.service
             }
         }
