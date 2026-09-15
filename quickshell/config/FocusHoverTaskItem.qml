@@ -53,7 +53,7 @@ Rectangle {
         // Project color dot
         Rectangle {
             visible: task && task.project_id && service
-            width: 6; height: 6; radius: 3
+            width: 8; height: 8; radius: 4
             anchors.verticalCenter: parent.verticalCenter
             color: (task && service) ? service.projectColor(task.project_id) : "transparent"
         }
@@ -115,15 +115,9 @@ Rectangle {
             spacing: 3
             visible: task && task.estimated_mins
             Text {
-                text: task ? String(task.estimated_mins) : ""
+                text: task ? String(task.estimated_mins) + "m" : ""
                 font.pixelSize: Theme.fontSm
                 color: _theme.textSecondary
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            Text {
-                text: "min"
-                font.pixelSize: Theme.fontSm - 1
-                color: _theme.textMuted
                 anchors.verticalCenter: parent.verticalCenter
             }
         }

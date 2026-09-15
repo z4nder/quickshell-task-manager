@@ -44,10 +44,11 @@ Rectangle {
             var t = tasks[i]
             taskListModel.append({
                 taskId:        t.id,
-                taskTitle:     t.title      || "",
-                taskCompleted: t.completed  || false,
+                taskTitle:     t.title         || "",
+                taskCompleted: t.completed     || false,
                 taskEstMins:   t.estimated_mins || 0,
-                taskElapsed:   t.elapsed_secs   || 0
+                taskElapsed:   t.elapsed_secs   || 0,
+                taskProjectId: t.project_id    || 0
             })
             root._visualOrder.push(t.id)
         }
@@ -121,7 +122,8 @@ Rectangle {
                         title:          taskTitle,
                         completed:      taskCompleted,
                         estimated_mins: taskEstMins > 0 ? taskEstMins : null,
-                        elapsed_secs:   taskElapsed
+                        elapsed_secs:   taskElapsed,
+                        project_id:     taskProjectId > 0 ? taskProjectId : null
                     })
                     service: root.service
                     opacity: dragContent.Drag.active ? 0.75 : 1.0
@@ -209,7 +211,7 @@ Rectangle {
             RowLayout {
                 Layout.fillWidth: true
                 Text {
-                    text: "Tasks"
+                    text: "Tarefas"
                     font.pixelSize: Theme.fontLg
                     font.weight: Font.Medium
                     color: _theme.textPrimary
@@ -264,6 +266,8 @@ Rectangle {
                         root._visualOrder = order
                     }
                 }
+
+
             }
         }
 

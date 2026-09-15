@@ -386,11 +386,12 @@ Rectangle {
 
                         Repeater {
                             model: [
-                                { key: "dark",     label: "Dark",     dot: "#e53935" },
-                                { key: "midnight", label: "Midnight", dot: "#4488ff" },
-                                { key: "forest",   label: "Forest",   dot: "#4caf50" },
-                                { key: "neon",     label: "Neon",     dot: "#e040fb" },
-                                { key: "light",    label: "Light",    dot: "#636366" }
+                                { key: "dark",       label: "Dark",       dot: "#e53935" },
+                                { key: "midnight",   label: "Midnight",   dot: "#4488ff" },
+                                { key: "forest",     label: "Forest",     dot: "#4caf50" },
+                                { key: "neon",       label: "Neon",       dot: "#e040fb" },
+                                { key: "light",      label: "Light",      dot: "#636366" },
+                                { key: "evangelion", label: "Evangelion", dot: "#d3208f" }
                             ]
 
                             delegate: Rectangle {
@@ -500,8 +501,8 @@ Rectangle {
 
                 Repeater {
                     model: [
-                        { label: "Tasks",    idx: 0 },
-                        { label: "Projects", idx: 1 }
+                        { label: "Tarefas",  idx: 0 },
+                        { label: "Projetos", idx: 1 }
                     ]
                     delegate: Rectangle {
                         Layout.fillWidth: true
@@ -578,10 +579,11 @@ Rectangle {
 
                         // Header
                         Text {
-                            text: "Tasks"
+                            text: "FocusTrack"
                             font.pixelSize: Theme.fontXl
-                            font.weight: Font.Medium
+                            font.weight: Font.Bold
                             color: _theme.textPrimary
+                            font.letterSpacing: -0.5
                         }
 
                         // Calendar
@@ -604,7 +606,7 @@ Rectangle {
 
                             Text {
                                 anchors.centerIn: parent
-                                text: "Today"
+                                text: "Hoje"
                                 font.pixelSize: Theme.fontMd
                                 color: _theme.textPrimary
                             }
@@ -641,7 +643,7 @@ Rectangle {
                                 var today = new Date()
                                 if (Qt.formatDate(root.selectedDate, "yyyy-MM-dd")
                                         === Qt.formatDate(today, "yyyy-MM-dd"))
-                                    return "Today"
+                                    return "Hoje"
                                 return Qt.formatDate(root.selectedDate, "d MMM")
                             }
                             font.pixelSize: Theme.fontXl
@@ -650,13 +652,35 @@ Rectangle {
                             Layout.fillWidth: true
                         }
 
+                        // Completion count badge
+                        Rectangle {
+                            visible: service && tabRow.currentTab === 0
+                            implicitWidth: doneCountText.implicitWidth + 14
+                            implicitHeight: 20
+                            radius: Theme.radiusSm
+                            color: _theme.bgItem
+
+                            Text {
+                                id: doneCountText
+                                anchors.centerIn: parent
+                                text: {
+                                    if (!service) return ""
+                                    var tasks = service.tasksForDate(root.selectedDate)
+                                    var done = tasks.filter(function(t) { return t.completed }).length
+                                    return done + " / " + tasks.length
+                                }
+                                font.pixelSize: Theme.fontSm
+                                color: _theme.textSecondary
+                            }
+                        }
+
                         Row {
                             id: tabRow
                             spacing: 2
                             property int currentTab: 0
 
                             Repeater {
-                                model: ["Day", "Unscheduled"]
+                                model: ["Hoje", "Não agendadas"]
                                 delegate: Rectangle {
                                     implicitWidth:  tabLabel.implicitWidth + 16
                                     implicitHeight: 28
@@ -781,7 +805,7 @@ Rectangle {
                         TextField {
                             id: addTaskField
                             Layout.fillWidth: true
-                            placeholderText: "Add a task"
+                            placeholderText: "Nova tarefa..."
                             color: _theme.textPrimary
                             placeholderTextColor: _theme.textMuted
                             font.pixelSize: Theme.fontMd

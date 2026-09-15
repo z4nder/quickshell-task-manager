@@ -35,7 +35,10 @@ Item {
                           accent: "#e53935", accentDim: "#ffcdd2", border: "#d1d1d6" },
             "midnight": { bg: "#000000", bgPanel: "#0d0d0d", bgItem: "#1a1a1a", bgHover: "#262626",
                           textPrimary: "#ffffff", textSecondary: "#999999", textMuted: "#444444",
-                          accent: "#4488ff", accentDim: "#1a3a7a", border: "#262626" }
+                          accent: "#4488ff", accentDim: "#1a3a7a", border: "#262626" },
+            "evangelion": { bg: "#0b0c0a", bgPanel: "#16101a", bgItem: "#1e1422", bgHover: "#2a1c30",
+                            textPrimary: "#e2a05e", textSecondary: "#a07840", textMuted: "#604828",
+                            accent: "#d3208f", accentDim: "#7a1050", border: "#2b2a1e" }
         }
         return t[currentTheme] || t["dark"]
     }
