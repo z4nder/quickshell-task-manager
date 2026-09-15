@@ -157,8 +157,8 @@ Rectangle {
             Layout.fillHeight: true
             clip: true
             model: service ? service.projects : []
-            cellWidth:  200
-            cellHeight: 172
+            cellWidth:  240
+            cellHeight: 240
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
             delegate: Item {
@@ -168,7 +168,6 @@ Rectangle {
             Rectangle {
                 id: projCard
                 property var  project: modelData
-                property bool hovered: false
                 property int  total:   root.taskCountForProject(project.id)
                 property int  done:    root.doneCountForProject(project.id)
                 property string pColor: project.color || _theme.accent
@@ -179,11 +178,8 @@ Rectangle {
                 border.color: pColor
                 border.width: 1.5
 
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    acceptedButtons: Qt.NoButton
-                    onContainsMouseChanged: projCard.hovered = containsMouse
+                HoverHandler {
+                    id: cardHover
                 }
 
                 ColumnLayout {
@@ -215,7 +211,7 @@ Rectangle {
                         Rectangle {
                             width: 26; height: 26; radius: Theme.radiusSm
                             color: cardEditArea.containsMouse ? _theme.bgHover : Qt.rgba(1,1,1,0.06)
-                            opacity: projCard.hovered ? 1.0 : 0
+                            opacity: cardHover.hovered ? 1.0 : 0
                             Behavior on opacity { NumberAnimation { duration: 120 } }
                             Behavior on color   { ColorAnimation  { duration: 100 } }
                             Image {
@@ -241,7 +237,7 @@ Rectangle {
                             property real dg: parseInt(_theme.danger.slice(3,5), 16) / 255
                             property real db: parseInt(_theme.danger.slice(5,7), 16) / 255
                             color: cardDeleteArea.containsMouse ? Qt.rgba(dr,dg,db,0.30) : Qt.rgba(dr,dg,db,0.14)
-                            opacity: projCard.hovered ? 1.0 : 0
+                            opacity: cardHover.hovered ? 1.0 : 0
                             Behavior on opacity { NumberAnimation { duration: 120 } }
                             Behavior on color   { ColorAnimation  { duration: 100 } }
                             Image {
@@ -258,6 +254,43 @@ Rectangle {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: { if (service) service.deleteProject(projCard.project.id) }
                             }
+                        }
+                    }
+
+                    // ── Status badge ──────────────────────────────────────
+                    Rectangle {
+                        property string st: projCard.project.status || "Created"
+                        property string badgeColor: {
+                            if (st === "InProgress" || st === "In Progress") return _theme.warning
+                            if (st === "Completed")                          return _theme.accentAlt
+                            return _theme.textMuted   // Created
+                        }
+                        implicitWidth:  statusBadgeLbl.implicitWidth + 12
+                        implicitHeight: 18
+                        radius: 9
+                        color: Qt.rgba(
+                            parseInt(badgeColor.slice(1,3),16)/255,
+                            parseInt(badgeColor.slice(3,5),16)/255,
+                            parseInt(badgeColor.slice(5,7),16)/255,
+                            0.18)
+                        border.color: Qt.rgba(
+                            parseInt(badgeColor.slice(1,3),16)/255,
+                            parseInt(badgeColor.slice(3,5),16)/255,
+                            parseInt(badgeColor.slice(5,7),16)/255,
+                            0.55)
+                        border.width: 1
+
+                        Text {
+                            id: statusBadgeLbl
+                            anchors.centerIn: parent
+                            text: {
+                                var s = parent.st
+                                if (s === "InProgress" || s === "In Progress") return "In Progress"
+                                if (s === "Completed") return "Completed"
+                                return "Created"
+                            }
+                            font.pixelSize: Theme.fontSm
+                            color: parent.badgeColor
                         }
                     }
 

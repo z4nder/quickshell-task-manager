@@ -74,7 +74,7 @@ Item {
     // ── Calendar dropdown ────────────────────────────────────────────────────
     Rectangle {
         id: calDrop
-        anchors { left: parent.left; top: fieldRect.bottom; topMargin: 4 }
+        anchors { left: parent.left; bottom: fieldRect.top; bottomMargin: 4 }
         width:   242
         height:  inlineCal.implicitHeight + 24
         radius:  Theme.radiusMd
