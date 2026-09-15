@@ -585,24 +585,12 @@ Rectangle {
                         color: _theme.textSecondary
                     }
 
-                    TextField {
-                        id: startDateField
+                    FocusDatePicker {
+                        id: startDatePicker
                         Layout.fillWidth: true
-                        inputMask: "9999-99-99"
-                        text: root._fieldStartDate
-                        placeholderText: "YYYY-MM-DD"
-                        placeholderTextColor: _theme.textMuted
-                        color: _theme.textPrimary
-                        font.pixelSize: Theme.fontMd
-                        onTextChanged: root._fieldStartDate = text
-                        background: Rectangle {
-                            color: _theme.bgItem
-                            radius: Theme.radiusSm
-                            border.color: startDateField.activeFocus ? _theme.accent : _theme.border
-                            border.width: 1
-                        }
-                        Keys.onReturnPressed: root._submit()
-                        Keys.onEscapePressed: root._showModal = false
+                        value:   root._fieldStartDate
+                        service: root.service
+                        onValueChanged: root._fieldStartDate = value
                     }
                 }
 
@@ -617,24 +605,12 @@ Rectangle {
                         color: _theme.textSecondary
                     }
 
-                    TextField {
-                        id: endDateField
+                    FocusDatePicker {
+                        id: endDatePicker
                         Layout.fillWidth: true
-                        inputMask: "9999-99-99"
-                        text: root._fieldEndDate
-                        placeholderText: "YYYY-MM-DD"
-                        placeholderTextColor: _theme.textMuted
-                        color: _theme.textPrimary
-                        font.pixelSize: Theme.fontMd
-                        onTextChanged: root._fieldEndDate = text
-                        background: Rectangle {
-                            color: _theme.bgItem
-                            radius: Theme.radiusSm
-                            border.color: endDateField.activeFocus ? _theme.accent : _theme.border
-                            border.width: 1
-                        }
-                        Keys.onReturnPressed: root._submit()
-                        Keys.onEscapePressed: root._showModal = false
+                        value:   root._fieldEndDate
+                        service: root.service
+                        onValueChanged: root._fieldEndDate = value
                     }
                 }
 

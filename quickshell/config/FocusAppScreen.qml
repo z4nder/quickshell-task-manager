@@ -166,16 +166,10 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: 4
                         Text { text: "Date"; font.pixelSize: Theme.fontSm; color: _theme.textSecondary }
-                        TextField {
+                        FocusDatePicker {
                             id: editDateField
                             Layout.fillWidth: true
-                            font.pixelSize: Theme.fontMd
-                            color: _theme.textPrimary
-                            placeholderText: "YYYY-MM-DD"
-                            placeholderTextColor: _theme.textMuted
-                            inputMask: "9999-99-99"
-                            leftPadding: 10; rightPadding: 10
-                            background: Rectangle { color: _theme.bgItem; radius: Theme.radiusSm; border.color: editDateField.activeFocus ? _theme.accent : "transparent"; border.width: 1 }
+                            service: root.service
                         }
                     }
 
@@ -328,8 +322,7 @@ Rectangle {
                             onClicked: {
                                 if (!root.service || !root.editTask) return
                                 var mins = parseInt(editMinsField.text)
-                                var rawDate = editDateField.text
-                                var dateVal = /\d{4}-\d{2}-\d{2}/.test(rawDate) ? rawDate : ""
+                                var dateVal = /\d{4}-\d{2}-\d{2}/.test(editDateField.value) ? editDateField.value : ""
                                 var taskId = root.editTask.id
                                 root.service.editTask(
                                     taskId,
@@ -353,7 +346,7 @@ Rectangle {
         onVisibleChanged: {
             if (visible && root.editTask) {
                 editTitleField.text = root.editTask.title || ""
-                editDateField.text  = root.editTask.scheduled_date || ""
+                editDateField.value = root.editTask.scheduled_date || ""
                 editMinsField.text  = root.editTask.estimated_mins ? String(root.editTask.estimated_mins) : ""
                 editNotesField.text = root.editTask.notes || ""
                 editOverlay._editProjectId = root.editTask.project_id || null
