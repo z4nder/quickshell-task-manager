@@ -72,21 +72,32 @@ Add the flake input:
 
 ```nix
 # flake.nix
-inputs.focus-notch.url = "github:your-user/focus-notch";
+inputs.quickshell-task-manager.url = "github:z4nder/quickshell-task-manager";
 ```
 
-Then enable the module:
+Add the overlay (exposes `pkgs.focusctl`) and the home-manager module:
 
 ```nix
-# home.nix or equivalent
-{ inputs, ... }: {
-  imports = [ inputs.focus-notch.homeManagerModules.default ];
+# In your nixpkgs overlays list
+quickshell-task-manager.overlays.default
 
-  programs.focus-notch.enable = true;
-}
+# In home-manager sharedModules (or imports)
+quickshell-task-manager.homeManagerModules.default
 ```
 
-The module handles the binary, QML files and icons automatically.
+Then enable in your home config:
+
+```nix
+programs.focus-notch.enable = true;
+```
+
+The module deploys the `focusctl` binary, all QML components, icons and `themes.json` automatically.
+
+> **Note — `cargoHash` mismatch:** if you get a hash mismatch error after updating the flake, run:
+> ```bash
+> nix build github:z4nder/quickshell-task-manager#focusctl 2>&1 | grep "got:"
+> ```
+> and open an issue with the output so `nix/package.nix` can be updated.
 
 ---
 

@@ -4,7 +4,9 @@ rustPlatform.buildRustPackage {
   version = "0.1.0";
   src     = lib.cleanSource ../.;
 
-  cargoHash = lib.fakeHash;
+  # Vendored deps — no crates.io network access needed at build time.
+  # Regenerate with: cargo vendor vendor && git add vendor
+  cargoVendorDir = ../vendor;
 
   # Only build the CLI binary, skip other workspace members if unneeded
   cargoBuildFlags = [ "-p" "focusctl" ];
