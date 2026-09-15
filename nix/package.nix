@@ -4,7 +4,7 @@ rustPlatform.buildRustPackage {
   version = "0.1.0";
   src     = lib.cleanSource ../.;
 
-  cargoLock.lockFile = ../Cargo.lock;
+  cargoHash = lib.fakeHash;
 
   # Only build the CLI binary, skip other workspace members if unneeded
   cargoBuildFlags = [ "-p" "focusctl" ];
